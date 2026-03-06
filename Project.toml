@@ -1,0 +1,12 @@
+name = "MPINext"
+uuid = "c18ebcb9-1a33-4e2c-8909-f6557f1cf8a7"
+version = "0.1.0"
+authors = ["Erik Schnetter <schnetter@gmail.com>"]
+
+[deps]
+MPIABI_jll = "b5ada748-db0f-5fc0-8972-9331c762740c"
+MPICH_jll = "7cb0a576-ebde-5e09-9194-50597f1243b4"
+
+[compat]
+MPIABI_jll = "0.1.1"
+MPICH_jll = "5.0.0"
