@@ -256,7 +256,7 @@ function send(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, ta
         MPI_Send(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val)
     end
 end
-function send(buf::Buffer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm) where {T}
+function send(buf::Buffer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
     send(buf, buffer_count(buf), datatype, dest, tag, comm)
 end
 function send(buf::Buffer, count::Integer, dest::Integer, tag::Integer, comm::Comm)

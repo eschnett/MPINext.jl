@@ -6,4 +6,4 @@ A Julia wrapper for the [MPI](https://www.mpi-forum.org) standard
 
 ## Overview
 
-See [MPI.jl](https://github.com/JuliaParallel/MPI.jl).
+See also [MPI.jl](https://github.com/JuliaParallel/MPI.jl).
