@@ -1,4 +1,4 @@
-# julia --project=@. --eval 'using MPICH_jll; MPICH_jll.mpiexec(mpiexec -> run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`))'
+# julia --project=@. --eval 'using MPINext; mpiexec(mpiexec -> run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`))'
 
 using MPINext
 using Test
@@ -71,6 +71,11 @@ barrier(COMM_WORLD)
     COMM_NULL::Comm
     COMM_SELF::Comm
     COMM_WORLD::Comm
+
+    @test comm_rank(COMM_SELF) == 0
+    @test comm_size(COMM_SELF) == 1
+    @test comm_rank(COMM_WORLD) == rank_from_env
+    @test comm_size(COMM_WORLD) == size_from_env
 end
 
 function printf(str::String)

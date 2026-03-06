@@ -16,10 +16,13 @@ Base.convert(::Type{MPI_Datatype}, ::Type{Clonglong}) = MPI_LONG_LONG
 Base.convert(::Type{MPI_Datatype}, ::Type{Cfloat}) = MPI_FLOAT
 Base.convert(::Type{MPI_Datatype}, ::Type{Cdouble}) = MPI_DOUBLE
 
-const datatype2type = Dict{MPI_Datatype,Type}(
-    MPI_INT => Cint, MPI_LONG_LONG => Clonglong, MPI_FLOAT => Cfloat, MPI_DOUBLE => Cdouble
-)
-Base.convert(::Type{Type}, datatype::MPI_Datatype) = datatype2type[datatype]
+function Base.convert(::Type{Type}, datatype::MPI_Datatype)
+    datatype == MPI_INT && return Cint
+    datatype == MPI_LONG_LONG && return Clonglong
+    datatype == MPI_FLOAT && return Cfloat
+    datatype == MPI_DOUBLE && return Cdouble
+    error("Unsupported MPI_Datatype $datatype")
+end
 
 ################################################################################
 
@@ -34,6 +37,7 @@ function MPI_Barrier(comm::MPI_Comm)
 end
 
 function MPI_Comm_rank(comm::MPI_Comm)
+    @show :MPI_Comm_rank MPI_COMM_WORLD # MPI_Comm(cglobal((:ompi_mpi_comm_world, libmpi)))
     rank = Ref{Cint}()
     ierr = @ccall libmpi.MPI_Comm_rank(comm::MPI_Comm, rank::Ref{Cint})::Cint
     chkerr(ierr)

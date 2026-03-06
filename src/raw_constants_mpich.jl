@@ -3,17 +3,9 @@ const MPI_Fint = Int32
 const MPI_Count = Int64
 const MPI_Offset = Int64
 
-struct MPI_Comm
-    val::Cint
-end
-
-struct MPI_Datatype
-    val::Cint
-end
-
-struct MPI_Op
-    val::Cint
-end
+const MPI_Comm = Cint
+const MPI_Datatype = Cint
+const MPI_Op = Cint
 
 struct MPI_Status
     _private0::Cint
@@ -65,3 +57,5 @@ const MPI_REPLACE = MPI_Op(0x5800000d)
 const MPI_NO_OP = MPI_Op(0x5800000e)
 
 const MPI_STATUS_IGNORE = Ptr{MPI_Status}(1)
+
+init_constants() = nothing
