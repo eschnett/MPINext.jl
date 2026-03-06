@@ -30,6 +30,9 @@ jobs:
             version: "1.12"
           - arch: "x64"
             os: "ubuntu-24.04"
+            version: "^1.13.0-beta1"
+          - arch: "x64"
+            os: "ubuntu-24.04"
             version: "1.11"
           - arch: "x64"
             os: "ubuntu-24.04"
@@ -44,7 +47,7 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - name: "Run multi-process tests"
-        shell: julia --project=@. --eval {0}
+        shell: julia --project=@. {0}
         run: |
           using MPICH_jll
           @show `$(MPICH_jll.mpiexec)`
