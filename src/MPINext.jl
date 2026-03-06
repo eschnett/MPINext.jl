@@ -10,8 +10,13 @@ function __init__()
     # Produce an error if the preferences changed. If so, Julia must be restarted.
     MPIPreferences.check_unchanged()
 
-    # Preload any dependencies of libmpi before dlopen'ing the MPI library
-    MPIPreferences.dlopen_preloads()
+    #TODO # Preload any dependencies of libmpi before dlopen'ing the MPI library
+    #TODO MPIPreferences.dlopen_preloads()
+
+    @show :before
+    for lib in Libdl.dllist()
+        occursin("libmpi", lowercase(lib)) && @show lib
+    end
 
     @static if Sys.isunix()
         # dlopen the MPI library before any ccall:
@@ -24,6 +29,11 @@ function __init__()
         #   https://github.com/JuliaParallel/MPI.jl/pull/109
         #   https://github.com/JuliaParallel/MPI.jl/issues/587
         Libdl.dlopen(libmpi, Libdl.RTLD_LAZY | Libdl.RTLD_GLOBAL)
+    end
+
+    @show :after
+    for lib in Libdl.dllist()
+        occursin("libmpi", lowercase(lib)) && @show lib
     end
 
     # Needs to be called after `dlopen`. Use `invokelatest` so that
