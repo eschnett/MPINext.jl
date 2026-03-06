@@ -10,21 +10,21 @@ function __init__()
     # Produce an error if the preferences changed. If so, Julia must be restarted.
     MPIPreferences.check_unchanged()
 
-    #TODO # Preload any dependencies of libmpi before dlopen'ing the MPI library
-    #TODO MPIPreferences.dlopen_preloads()
+    # Preload any dependencies of libmpi before dlopen'ing the MPI library
+    MPIPreferences.dlopen_preloads()
 
-    #TODO @static if Sys.isunix()
-    #TODO     # dlopen the MPI library before any ccall:
-    #TODO     # - RTLD_GLOBAL is required for Open MPI
-    #TODO     #   https://www.open-mpi.org/community/lists/users/2010/04/12803.php
-    #TODO     # - also allows us to ccall global symbols, which enables profilers
-    #TODO     #   which use LD_PRELOAD
-    #TODO     # - don't use RTLD_DEEPBIND; this leads to issues with multiple MPI
-    #TODO     #   libraries:
-    #TODO     #   https://github.com/JuliaParallel/MPI.jl/pull/109
-    #TODO     #   https://github.com/JuliaParallel/MPI.jl/issues/587
-    #TODO     Libdl.dlopen(libmpi, Libdl.RTLD_LAZY | Libdl.RTLD_GLOBAL)
-    #TODO end
+    @static if Sys.isunix()
+        # dlopen the MPI library before any ccall:
+        # - RTLD_GLOBAL is required for Open MPI
+        #   https://www.open-mpi.org/community/lists/users/2010/04/12803.php
+        # - also allows us to ccall global symbols, which enables profilers
+        #   which use LD_PRELOAD
+        # - don't use RTLD_DEEPBIND; this leads to issues with multiple MPI
+        #   libraries:
+        #   https://github.com/JuliaParallel/MPI.jl/pull/109
+        #   https://github.com/JuliaParallel/MPI.jl/issues/587
+        Libdl.dlopen(libmpi, Libdl.RTLD_LAZY | Libdl.RTLD_GLOBAL)
+    end
 
     # Needs to be called after `dlopen`. Use `invokelatest` so that
     # `cglobal` calls don't trigger early `dlopen`-ing of the library.
