@@ -10,3 +10,4 @@ MPICH_jll = "7cb0a576-ebde-5e09-9194-50597f1243b4"
 [compat]
 MPIABI_jll = "0.1.1"
 MPICH_jll = "5.0.0"
+julia = "1.10"
