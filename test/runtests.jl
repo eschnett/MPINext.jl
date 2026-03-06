@@ -1,5 +1,7 @@
 # julia --project=@. --eval 'using MPICH_jll; run(`$(MPICH_jll.mpiexec) -n 4 julia --project=@. test/runtests.jl`)'
 
+# julia --project=@. --eval 'using MPICH_jll; MPICH_jll.mpiexec(mpiexec -> run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`))'
+
 using MPINext
 using Test
 
