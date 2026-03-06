@@ -20,6 +20,24 @@ const Status = MPI_Status
 
 ################################################################################
 
+const Buffer{T} = Union{Ptr{T},Ref{T},Array{T}}
+
+buffer_similar(::Ptr) = error("Cannot allocate receive buffer for a pointer")
+buffer_similar(::Ref{T}) where {T} = Ref{T}()
+buffer_similar(array::Array) = similar(array)
+
+buffer_ptr(ptr::Ptr) = ptr
+buffer_ptr(ref::Ref{T}) where {T} = Base.unsafe_convert(Ptr{T}, ref)
+buffer_ptr(array::Array) = pointer(array)
+
+buffer_datatype(::Buffer{T}) where {T} = Datatype(T)
+
+buffer_count(::Ptr) = error("Cannot determine buffer count for a pointer")
+buffer_count(::Ref) = 1
+buffer_count(array::Array) = length(array)
+
+################################################################################
+
 export COMM_WORLD, COMM_NULL, COMM_SELF
 const COMM_WORLD = Comm(MPI_COMM_WORLD)
 const COMM_NULL = Comm(MPI_COMM_NULL)
@@ -79,6 +97,14 @@ function comm_size(comm::Comm)
         size = MPI_Comm_size(comm.val)
     end
     return size
+end
+
+export get_count
+function get_count(status::Ref{Status}, datatype::Datatype)
+    GC.@preserve datatype begin
+        count = MPI_Get_count(status, datatype.val)
+    end
+    return count
 end
 
 export get_library_version
@@ -152,24 +178,38 @@ end
 export free
 free(op::Op) = op_free(op)
 
-export recv!
-function recv!(buf::Ptr{Cvoid}, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm, status::Ref{Status})
-    GC.@preserve datatype comm begin
-        MPI_Recv(buf, count, datatype.val, dest, tag, comm.val, status)
+export probe
+function probe(source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
+    GC.@preserve comm begin
+        MPI_Probe(source, tag, comm.val, status)
     end
 end
-function recv!(buf::Ptr{T}, count::Integer, dest::Integer, tag::Integer, comm::Comm, status::Ref{Status}) where {T}
-    recv!(Ptr{Cvoid}(buf), count, Datatype(T), dest, tag, comm.val, status)
-end
-function recv!(ref::Ref{T}, dest::Integer, tag::Integer, comm::Comm, status::Ref{Status}) where {T}
-    GC.@preserve ref begin
-        recv!(Base.unsafe_convert(Ptr{T}, ref), 1, dest, tag, comm.val, status)
+
+export recv!, recv
+function recv!(
+    buf::Buffer, count::Integer, datatype::Datatype, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}
+)
+    GC.@preserve buf datatype comm begin
+        MPI_Recv(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, status)
     end
 end
-function recv!(array::Array, dest::Integer, tag::Integer, comm::Comm, status::Ref{Status})
-    GC.@preserve array begin
-        recv!(pointer(array), length(array), dest, tag, comm.val, status)
-    end
+function recv!(buf::Buffer, datatype::Datatype, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
+    recv!(buf, buffer_count(buf), datatype, source, tag, comm, status)
+end
+function recv!(buf::Buffer, count::Integer, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
+    recv!(buf, count, buffer_datatype(buf), source, tag, comm, status)
+end
+function recv!(buf::Buffer, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
+    recv!(buf, buffer_count(buf), buffer_datatype(buf), source, tag, comm, status)
+end
+function recv(::Type{T}, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing) where {T}
+    probe_status = Ref{MPI_Status}()
+    probe(source, tag, comm, probe_status)
+    datatype = Datatype(T)
+    count = get_count(probe_status, datatype)
+    array = Array{T}(undef, count)
+    recv!(array, source, tag, comm, status)
+    return array
 end
 
 export reduce!
@@ -211,67 +251,109 @@ function reduce(sendarray::Array, op::Op, root::Integer, comm::Comm)
 end
 
 export send
-function send(buf::Ptr{Cvoid}, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
-    GC.@preserve datatype comm begin
-        MPI_Send(buf, count, datatype.val, dest, tag, comm.val)
+function send(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
+    GC.@preserve buf datatype comm begin
+        MPI_Send(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val)
     end
 end
-function send(buf::Ptr{T}, count::Integer, dest::Integer, tag::Integer, comm::Comm) where {T}
-    send(Ptr{Cvoid}(buf), count, Datatype(T), dest, tag, comm)
+function send(buf::Buffer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm) where {T}
+    send(buf, buffer_count(buf), datatype, dest, tag, comm)
 end
-function send(ref::Ref{T}, dest::Integer, tag::Integer, comm::Comm) where {T}
-    GC.@preserve ref begin
-        send(Base.unsafe_convert(Ptr{T}, ref), 1, dest, tag, comm)
-    end
+function send(buf::Buffer, count::Integer, dest::Integer, tag::Integer, comm::Comm)
+    send(buf, count, buffer_datatype(buf), dest, tag, comm)
 end
-function send(array::Array, dest::Integer, tag::Integer, comm::Comm)
-    GC.@preserve array begin
-        send(pointer(array), length(array), dest, tag, comm)
-    end
+function send(buf::Buffer, dest::Integer, tag::Integer, comm::Comm)
+    send(buf, buffer_count(buf), buffer_datatype(buf), dest, tag, comm)
+end
+function send(number::Number, dest::Integer, tag::Integer, comm::Comm)
+    send(Ref(number), dest::Integer, tag::Integer, comm::Comm)
 end
 
 export sendrecv!, sendrecv
 function sendrecv!(
-    sendbuf::Ptr{Cvoid},
+    sendbuf::Buffer,
     sendcount::Integer,
     sendtype::Datatype,
     dest::Integer,
     sendtag::Integer,
-    recvbuf::Ptr{Cvoid},
+    recvbuf::Buffer,
     recvcount::Integer,
     recvtype::Datatype,
     source::Integer,
     recvtag::Integer,
     comm::Comm,
-    status::Ref{Status},
+    status::Maybe{Ref{Status}}=nothing,
 )
-    GC.@preserve sendtype recvtype comm begin
+    GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
         MPI_Sendrecv(
-            sendbuf, sendcount, sendtype.val, dest, sendtag, recvbuf, recvcount, recvtype.val, source, recvtag, comm.val, status
+            buffer_ptr(sendbuf),
+            sendcount,
+            sendtype.val,
+            dest,
+            sendtag,
+            buffer_ptr(recvbuf),
+            recvcount,
+            recvtype.val,
+            source,
+            recvtag,
+            comm.val,
+            status,
         )
     end
 end
 function sendrecv!(
-    sendbuf::Ptr{T},
-    sendcount::Integer,
+    sendbuf::Buffer,
+    sendtype::Datatype,
     dest::Integer,
     sendtag::Integer,
-    recvbuf::Ptr{U},
+    recvbuf::Buffer,
     recvcount::Integer,
+    recvtype::Datatype,
     source::Integer,
     recvtag::Integer,
     comm::Comm,
-    status::Ref{Status},
-) where {T,U}
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(sendbuf, buffer_count(sendbuf), sendtype, dest, sendtag, recvbuf, recvcount, recvtype, source, recvtag, comm, status)
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    recvtype::Datatype,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
     sendrecv!(
-        Ptr{Cvoid}(sendbuf),
-        sendcount,
-        Datatype(T),
+        sendbuf, sendcount, buffer_datatype(sendbuf), dest, sendtag, recvbuf, recvcount, recvtype, source, recvtag, comm, status
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    recvtype::Datatype,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        buffer_datatype(sendbuf),
         dest,
         sendtag,
-        Ptr{Cvoid}(recvbuf),
+        recvbuf,
         recvcount,
-        Datatype(U),
+        recvtype,
         source,
         recvtag,
         comm,
@@ -279,67 +361,323 @@ function sendrecv!(
     )
 end
 function sendrecv!(
-    sendref::Ref{T},
+    sendbuf::Buffer,
+    sendcount::Integer,
+    sendtype::Datatype,
     dest::Integer,
     sendtag::Integer,
-    recvref::Ref{U},
+    recvbuf::Buffer,
+    recvtype::Datatype,
     source::Integer,
     recvtag::Integer,
     comm::Comm,
-    status::Ref{Status},
-) where {T,U}
-    GC.@preserve sendref recvref begin
-        sendrecv!(
-            Base.unsafe_convert(Ptr{T}, sendref),
-            1,
-            dest,
-            sendtag,
-            Base.unsafe_convert(Ptr{U}, recvref),
-            1,
-            source,
-            recvtag,
-            comm,
-            status,
-        )
-    end
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(sendbuf, sendcount, sendtype, dest, sendtag, recvbuf, buffer_count(recvbuf), recvtype, source, recvtag, comm, status)
 end
 function sendrecv!(
-    sendarray::Array,
+    sendbuf::Buffer,
+    sendtype::Datatype,
     dest::Integer,
     sendtag::Integer,
-    recvarray::Array,
+    recvbuf::Buffer,
+    recvtype::Datatype,
     source::Integer,
     recvtag::Integer,
     comm::Comm,
-    status::Ref{Status},
+    status::Maybe{Ref{Status}}=nothing,
 )
-    GC.@preserve sendarray recvarray begin
-        sendrecv!(
-            pointer(sendarray),
-            length(sendarray),
-            dest,
-            sendtag,
-            pointer(recvarray),
-            length(recvarray),
-            source,
-            recvtag,
-            comm,
-            status,
-        )
-    end
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        sendtype,
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        recvtype,
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvtype::Datatype,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        sendcount,
+        buffer_datatype(sendbuf),
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        recvtype,
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvtype::Datatype,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        buffer_datatype(sendbuf),
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        recvtype,
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    sendtype::Datatype,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf, sendcount, sendtype, dest, sendtag, recvbuf, recvcount, buffer_datatype(recvbuf), source, recvtag, comm, status
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendtype::Datatype,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        sendtype,
+        dest,
+        sendtag,
+        recvbuf,
+        recvcount,
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        sendcount,
+        buffer_datatype(sendbuf),
+        dest,
+        sendtag,
+        recvbuf,
+        recvcount,
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        buffer_datatype(sendbuf),
+        dest,
+        sendtag,
+        recvbuf,
+        recvcount,
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    sendtype::Datatype,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        sendcount,
+        sendtype,
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendtype::Datatype,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        sendtype,
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        sendcount,
+        buffer_datatype(sendbuf),
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+function sendrecv!(
+    sendbuf::Buffer,
+    dest::Integer,
+    sendtag::Integer,
+    recvbuf::Buffer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    sendrecv!(
+        sendbuf,
+        buffer_count(sendbuf),
+        buffer_datatype(sendbuf),
+        dest,
+        sendtag,
+        recvbuf,
+        buffer_count(recvbuf),
+        buffer_datatype(recvbuf),
+        source,
+        recvtag,
+        comm,
+        status,
+    )
+end
+
+function sendrecv(
+    sendbuf::Buffer,
+    dest::Integer,
+    sendtag::Integer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
+)
+    recvbuf = buffer_similar(sendbuf)
+    sendrecv!(sendbuf, dest, sendtag, recvbuf, source, recvtag, comm, status)
+    return recvbuf
 end
 function sendrecv(
-    sendval::Number, dest::Integer, sendtag::Integer, source::Integer, recvtag::Integer, comm::Comm, status::Ref{Status}
+    sendnumber::Number,
+    dest::Integer,
+    sendtag::Integer,
+    source::Integer,
+    recvtag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}}=nothing,
 )
-    sendref = Ref(sendval)
-    recvref = Ref{typeof(sendval)}()
-    sendrecv!(sendref, dest, sendtag, recvref, source, recvtag, comm, status)
-    return recvref[]
-end
-function sendrecv(
-    sendarray::Array, dest::Integer, sendtag::Integer, source::Integer, recvtag::Integer, comm::Comm, status::Ref{Status}
-)
-    recvarray = similar(sendarray)
-    sendrecv!(sendarray, dest, sendtag, recvarray, source, recvtag, comm, status)
-    return recvarray
+    return sendrecv(Ref(sendnumber), dest, sendtag, source, recvtag, comm, status)[]
 end

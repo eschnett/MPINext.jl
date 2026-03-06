@@ -23,6 +23,10 @@ Base.convert(::Type{Type}, datatype::MPI_Datatype) = datatype2type[datatype]
 
 ################################################################################
 
+const Maybe{T} = Union{Nothing,T}
+
+################################################################################
+
 function MPI_Barrier(comm::MPI_Comm)
     ierr = @ccall libmpi.MPI_Barrier(comm::MPI_Comm)::Cint
     chkerr(ierr)
@@ -56,12 +60,19 @@ function MPI_Finalized()
     return flag[] != 0
 end
 
+function MPI_Get_count(status::Ref{MPI_Status}, datatype::MPI_Datatype)
+    count = Ref{Cint}()
+    ierr = @ccall MPI_Get_count(status::Ref{MPI_Status}, datatype::MPI_Datatype, count::Ref{Cint})::Cint
+    chkerr(ierr)
+    return Int(count[])
+end
+
 function MPI_Get_library_version()
     version = Array{UInt8}(undef, MPI_MAX_LIBRARY_VERSION_STRING)
     resultlen = Ref{Cint}()
     ierr = @ccall libmpi.MPI_Get_library_version(version::Ptr{UInt8}, resultlen::Ref{Cint})::Cint
     chkerr(ierr)
-    return String(version[1:(resultlen[] + 1)])
+    return String(version[1:resultlen[]])
 end
 
 function MPI_Get_processor_name()
@@ -69,7 +80,7 @@ function MPI_Get_processor_name()
     resultlen = Ref{Cint}()
     ierr = @ccall libmpi.MPI_Get_processor_name(name::Ptr{UInt8}, resultlen::Ref{Cint})::Cint
     chkerr(ierr)
-    return String(name[1:(resultlen[] + 1)])
+    return String(name[1:resultlen[]])
 end
 
 function MPI_Get_version()
@@ -106,11 +117,19 @@ function MPI_Op_free(op::Ref{MPI_Op})
     return op[]
 end
 
+function MPI_Probe(source::Integer, tag::Integer, comm::MPI_Comm, status::Maybe{Ref{MPI_Status}})
+    c_status = status === nothing ? MPI_STATUS_IGNORE : status
+    ierr = @ccall libmpi.MPI_Probe(source::Cint, tag::Cint, comm::MPI_Comm, c_status::Ref{MPI_Status})::Cint
+    chkerr(ierr)
+    nothing
+end
+
 function MPI_Recv(
-    buf::Ptr{Cvoid}, count::Integer, datatype::MPI_Datatype, source::Integer, tag::Integer, comm::MPI_Comm, status::Ref{MPI_Status}
+    buf::Ptr, count::Integer, datatype::MPI_Datatype, source::Integer, tag::Integer, comm::MPI_Comm, status::Maybe{Ref{MPI_Status}}
 )
+    c_status = status === nothing ? MPI_STATUS_IGNORE : status
     ierr = @ccall libmpi.MPI_Recv(
-        buf::Ptr{Cvoid}, count::Cint, datatype::MPI_Datatype, source::Cint, tag::Cint, comm::MPI_Comm, status::Ref{MPI_Status}
+        buf::Ptr{Cvoid}, count::Cint, datatype::MPI_Datatype, source::Cint, tag::Cint, comm::MPI_Comm, c_status::Ref{MPI_Status}
     )::Cint
     chkerr(ierr)
     nothing
@@ -126,26 +145,27 @@ function MPI_Reduce(
     nothing
 end
 
-function MPI_Send(buf::Ptr{Cvoid}, count::Integer, datatype::MPI_Datatype, dest::Integer, tag::Integer, comm::MPI_Comm)
+function MPI_Send(buf::Ptr, count::Integer, datatype::MPI_Datatype, dest::Integer, tag::Integer, comm::MPI_Comm)
     ierr = @ccall libmpi.MPI_Send(buf::Ptr{Cvoid}, count::Cint, datatype::MPI_Datatype, dest::Cint, tag::Cint, comm::MPI_Comm)::Cint
     chkerr(ierr)
     nothing
 end
 
 function MPI_Sendrecv(
-    sendbuf::Ptr{Cvoid},
+    sendbuf::Ptr,
     sendcount::Integer,
     sendtype::MPI_Datatype,
     dest::Integer,
     sendtag::Integer,
-    recvbuf::Ptr{Cvoid},
+    recvbuf::Ptr,
     recvcount::Integer,
     recvtype::MPI_Datatype,
     source::Integer,
     recvtag::Integer,
     comm::MPI_Comm,
-    status::Ref{MPI_Status},
+    status::Maybe{Ref{MPI_Status}},
 )
+    c_status = status === nothing ? MPI_STATUS_IGNORE : status
     ierr = @ccall libmpi.MPI_Sendrecv(
         sendbuf::Ptr{Cvoid},
         sendcount::Cint,
@@ -158,7 +178,7 @@ function MPI_Sendrecv(
         source::Cint,
         recvtag::Cint,
         comm::MPI_Comm,
-        status::Ref{MPI_Status},
+        c_status::Ref{MPI_Status},
     )::Cint
     chkerr(ierr)
     nothing

@@ -1,5 +1,3 @@
-# julia --project=@. --eval 'using MPICH_jll; run(`$(MPICH_jll.mpiexec) -n 4 julia --project=@. test/runtests.jl`)'
-
 # julia --project=@. --eval 'using MPICH_jll; MPICH_jll.mpiexec(mpiexec -> run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`))'
 
 using MPINext
@@ -25,6 +23,8 @@ else
     redirect_stdout(logfile)
     redirect_stderr(logfile)
 end
+
+println("+++ Testing MPINext.jl")
 
 println("+++ MPI library version:")
 println(get_library_version())
@@ -79,9 +79,12 @@ function printf(str::String)
 end
 
 vecadd!(invec::Vector, inoutvec::Vector) = (inoutvec .+= invec)
-vecmin!(invec::Vector, inoutvec::Vector) = (inoutvec.=min.(inoutvec, invec))
-vecmax!(invec::Vector, inoutvec::Vector) = (inoutvec.=max.(inoutvec, invec))
+vecmin!(invec::Vector, inoutvec::Vector) = (inoutvec .= min.(inoutvec, invec))
+vecmax!(invec::Vector, inoutvec::Vector) = (inoutvec .= max.(inoutvec, invec))
 vecmul!(invec::Vector, inoutvec::Vector) = (inoutvec .*= invec)
+vecband!(invec::Vector, inoutvec::Vector) = (inoutvec .&= invec)
+vecbor!(invec::Vector, inoutvec::Vector) = (inoutvec .|= invec)
+vecbxor!(invec::Vector, inoutvec::Vector) = (inoutvec .⊻= invec)
 
 barrier(COMM_WORLD)
 @testset "Op" begin
@@ -98,6 +101,9 @@ barrier(COMM_WORLD)
     mymin = op_create(vecmin!, true)::Op
     mymax = op_create(vecmax!, true)::Op
     myprod = op_create(vecmul!, true)::Op
+    myband = op_create(vecband!, true)::Op
+    mybor = op_create(vecbor!, true)::Op
+    mybxor = op_create(vecbxor!, true)::Op
     for i in 1:10
         GC.gc(true)
     end
@@ -105,6 +111,9 @@ barrier(COMM_WORLD)
     op_free(mymin)
     op_free(mymax)
     op_free(myprod)
+    op_free(myband)
+    op_free(mybor)
+    op_free(mybxor)
     for i in 1:10
         GC.gc(true)
     end
@@ -123,6 +132,36 @@ barrier(COMM_WORLD)
         y = Ref{T}()
         status = Ref{Status}()
 
+        if size > 1
+            if rank != size - 1
+                send(x, dest, tag, COMM_WORLD)
+            end
+            if rank != 0
+                recv!(y, source, tag, COMM_WORLD, status)
+                @test status[].MPI_SOURCE == source
+                @test status[].MPI_TAG == tag
+                @test y[] == msg(source)
+            end
+
+            if rank != size - 1
+                send(x, dest, tag, COMM_WORLD)
+            end
+            if rank != 0
+                recv!(y, source, tag, COMM_WORLD)
+                @test y[] == msg(source)
+            end
+
+            if rank != size - 1
+                send(x, dest, tag, COMM_WORLD)
+            end
+            if rank != 0
+                z = recv(T, source, tag, COMM_WORLD)
+                z::Vector{T}
+                @test length(z) == 1
+                @test z == [msg(source)]
+            end
+        end
+
         sendrecv!(x, dest, tag, y, source, tag, COMM_WORLD, status)
         @test status[].MPI_SOURCE == source
         @test status[].MPI_TAG == tag
@@ -138,7 +177,42 @@ barrier(COMM_WORLD)
             x = fill(msg(rank), sz)
             y = similar(x)
 
+            if size > 1
+                if rank != size - 1
+                    send(x, dest, tag, COMM_WORLD)
+                end
+                if rank != 0
+                    recv!(y, source, tag, COMM_WORLD, status)
+                    @test status[].MPI_SOURCE == source
+                    @test status[].MPI_TAG == tag
+                    @test all(==(msg(source)), y)
+                end
+
+                if rank != size - 1
+                    send(x, dest, tag, COMM_WORLD)
+                end
+                if rank != 0
+                    recv!(y, source, tag, COMM_WORLD)
+                    @test all(==(msg(source)), y)
+                end
+
+                if rank != size - 1
+                    send(x, dest, tag, COMM_WORLD)
+                end
+                if rank != 0
+                    z = recv(T, source, tag, COMM_WORLD)
+                    z::Vector{T}
+                    @test length(z) == length(x)
+                    @test all(==(msg(source)), z)
+                end
+            end
+
             sendrecv!(x, dest, tag, y, source, tag, COMM_WORLD, status)
+            @test status[].MPI_SOURCE == source
+            @test status[].MPI_TAG == tag
+            @test all(==(msg(source)), y)
+
+            sendrecv!(pointer(x), length(x), dest, tag, pointer(y), length(y), source, tag, COMM_WORLD, status)
             @test status[].MPI_SOURCE == source
             @test status[].MPI_TAG == tag
             @test all(==(msg(source)), y)
@@ -159,51 +233,71 @@ barrier(COMM_WORLD)
     mymin = op_create(vecmin!, true)
     mymax = op_create(vecmax!, true)
     myprod = op_create(vecmul!, true)
-    operators = [
-        (Op(+), sum),
-        (Op(min), minimum),
-        (Op(max), maximum),
-        (Op(*), prod),
-        (mysum, sum),
-        (mymin, minimum),
-        (mymax, maximum),
-        (myprod, prod),
-    ]
+    myband = op_create(vecband!, true)::Op
+    mybor = op_create(vecbor!, true)::Op
+    mybxor = op_create(vecbxor!, true)::Op
 
-    for T in M.predefined_mpi_types_list, (op, julia_op) in operators
-        input(proc) = T(2*proc+1)
-        output = julia_op(input(proc) for proc in 0:(size - 1))
+    for T in M.predefined_mpi_types_list
+        operators = [
+            (Op(+), sum),
+            (Op(min), minimum),
+            (Op(max), maximum),
+            (Op(*), prod),
+            (mysum, sum),
+            (mymin, minimum),
+            (mymax, maximum),
+            (myprod, prod),
+        ]
 
-        x = Ref(input(rank))
-        y = Ref{T}()
-
-        reduce!(x, y, op, 0, COMM_WORLD)
-        if rank == root
-            @test y[] == output
+        if T <: Integer
+            append!(
+                operators,
+                [
+                    (Op(&), (array -> reduce(&, array))),
+                    (Op(|), (array -> reduce(|, array))),
+                    (Op(⊻), (array -> reduce(⊻, array))),
+                    (myband, (array -> reduce(&, array))),
+                    (mybor, (array -> reduce(|, array))),
+                    (mybxor, (array -> reduce(⊻, array))),
+                ],
+            )
         end
 
-        z = reduce(x[], op, 0, COMM_WORLD)
-        if rank == root
-            @test z == output
-        else
-            @test z === nothing
-        end
+        for (op, julia_op) in operators
+            input(proc) = T(2*proc+1)
+            output = julia_op(input(proc) for proc in 0:(size - 1))
 
-        for D in 0:4
-            sz = ntuple(d -> d+2, D)
-            x = fill(input(rank), sz)
-            y = rank == root ? similar(x) : T[]
+            x = Ref(input(rank))
+            y = Ref{T}()
 
-            reduce!(x, y, op, root, COMM_WORLD)
+            reduce!(x, y, op, 0, COMM_WORLD)
             if rank == root
-                @test all(==(output), y)
+                @test y[] == output
             end
 
-            z = reduce(x, op, root, COMM_WORLD)
+            z = reduce(x[], op, 0, COMM_WORLD)
             if rank == root
-                @test all(==(output), z)
+                @test z == output
             else
                 @test z === nothing
+            end
+
+            for D in 0:4
+                sz = ntuple(d -> d+2, D)
+                x = fill(input(rank), sz)
+                y = rank == root ? similar(x) : T[]
+
+                reduce!(x, y, op, root, COMM_WORLD)
+                if rank == root
+                    @test all(==(output), y)
+                end
+
+                z = reduce(x, op, root, COMM_WORLD)
+                if rank == root
+                    @test all(==(output), z)
+                else
+                    @test z === nothing
+                end
             end
         end
     end
@@ -217,3 +311,5 @@ barrier(COMM_WORLD)
     @test mpi_initialized()
     @test mpi_finalized()
 end
+
+println("+++ Done.")

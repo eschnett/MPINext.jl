@@ -1,7 +1,9 @@
 # MPINext.jl
 
+A Julia wrapper for the [MPI](https://www.mpi-forum.org) standard
+
 [![CI](https://github.com/eschnett/MPINext.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/eschnett/MPINext.jl/actions/workflows/CI.yml)
 
-[MPI.jl](https://github.com/JuliaParallel/MPI.jl)
+## Overview
 
-[MPI forum[(https://www.mpi-forum.org)
+See [MPI.jl](https://github.com/JuliaParallel/MPI.jl).

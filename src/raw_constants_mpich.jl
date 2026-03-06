@@ -63,3 +63,5 @@ const MPI_MINLOC = MPI_Op(0x5800000b)
 const MPI_MAXLOC = MPI_Op(0x5800000c)
 const MPI_REPLACE = MPI_Op(0x5800000d)
 const MPI_NO_OP = MPI_Op(0x5800000e)
+
+const MPI_STATUS_IGNORE = Ptr{MPI_Status}(1)
