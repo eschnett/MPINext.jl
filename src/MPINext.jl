@@ -46,6 +46,9 @@ else
     error("Unknown MPI binary: $(MPIPreferences.binary)")
 end
 
+# Access `libmpi` to ensure that a working MPI implementation has been loaded
+libmpi
+
 function get_rank_size_from_env()
     @static if binary == "MPIABI_jll"
         rank = parse(Int, get(ENV, "PMI_RANK", "0"))
