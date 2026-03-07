@@ -3,17 +3,12 @@ const MPI_Fint = Int32
 const MPI_Count = Int64
 const MPI_Offset = Int64
 
-struct MPI_Comm
-    val::UInt
-end
-
-struct MPI_Datatype
-    val::UInt
-end
-
-struct MPI_Op
-    val::UInt
-end
+struct MPI_ABI_Comm end
+struct MPI_ABI_Datatype end
+struct MPI_ABI_Op end
+const MPI_Comm = Ptr{MPI_ABI_Comm}
+const MPI_Datatype = Ptr{MPI_ABI_Datatype}
+const MPI_Op = Ptr{MPI_ABI_Op}
 
 struct MPI_Status
     MPI_SOURCE::Cint
