@@ -58,4 +58,4 @@ const MPI_NO_OP = MPI_Op(0x5800000e)
 
 const MPI_STATUS_IGNORE = Ptr{MPI_Status}(1)
 
-init_constants() = nothing
+init_raw_constants() = nothing
