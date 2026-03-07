@@ -7,6 +7,7 @@ jobs:
     name: Julia ${{matrix.version}} - ${{matrix.os}} - ${{matrix.arch}} - ${{matrix.mpi}} - ${{github.event_name}}
     runs-on: ${{matrix.os}}
     strategy:
+      fail-fast: false
       matrix:
         # See <https://julialang-s3.julialang.org/bin/versions.json> for available Julia versions
         include:
@@ -75,14 +76,14 @@ jobs:
                   run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`)
               end
           ' || {
-              cat MPINext_test.0.log
-              cat MPINext_test.1.log
-              cat MPINext_test.2.log
-              cat MPINext_test.3.log
+              for i in 0 1 2 3; do
+                  echo "*** Log file for MPI process $i"
+                  cat MPINext_test.$i.log
+              done
               false
           }
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{secrets.CODECOV_TOKEN}}
           slug: eschnett/IndexSpaces.jl

@@ -67,6 +67,7 @@ function MPI_Get_count(status::Ref{MPI_Status}, datatype::MPI_Datatype)
     count = Ref{Cint}()
     ierr = @ccall MPI_Get_count(status::Ref{MPI_Status}, datatype::MPI_Datatype, count::Ref{Cint})::Cint
     chkerr(ierr)
+    #TODO count[] == MPI_UNDEFINED && return nothing
     return Int(count[])
 end
 
