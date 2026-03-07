@@ -62,15 +62,22 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - name: "Run multi-process tests"
-        env:
-          OMPI_MCA_mpi_yield_when_idle: 1
-          OMPI_MCA_orte_default_hostfile: ""
-          PRTE_MCA_rmaps_default_mapping_policy: "slot:oversubscribe"
+        # env:
+        #   # For OpenMPI 4
+        #   OMPI_MCA_rmaps_base_oversubscribe: "true"
+        #   # For OpenMPI 5
+        #   OMPI_MCA_mpi_yield_when_idle: 1
+        #   OMPI_MCA_orte_default_hostfile: ""
+        #   PRTE_MCA_rmaps_default_mapping_policy: "slot:oversubscribe"
         run: |
           julia --project=@. --eval '
               using MPINext
               MPINext.mpiexec() do mpiexec
-                  run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`)
+                  if "${{matrix.mpi}}" == "OpenMPI"
+                      run(`$mpiexec --oversubscribe -n 4 julia --project=@. test/runtests.jl`)
+                  else
+                      run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`)
+                  end
               end
           ' || {
               for i in 0 1 2 3; do
