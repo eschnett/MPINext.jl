@@ -60,13 +60,10 @@ const MPI_STATUS_IGNORE = Ptr{MPI_Status}(0)
 
 ################################################################################
 
-function init_constants()
-    @show :init_constants
+function init_raw_constants()
     global MPI_COMM_NULL = MPI_Comm(cglobal((:ompi_mpi_comm_null, libmpi)))
     global MPI_COMM_SELF = MPI_Comm(cglobal((:ompi_mpi_comm_self, libmpi)))
-    @show MPI_COMM_WORLD
     global MPI_COMM_WORLD = MPI_Comm(cglobal((:ompi_mpi_comm_world, libmpi)))
-    @show MPI_COMM_WORLD
 
     global MPI_DATATYPE_NULL = MPI_Datatype(cglobal((:ompi_mpi_datatype_null, libmpi)))
     global MPI_INT = MPI_Datatype(cglobal((:ompi_mpi_int, libmpi)))

@@ -37,7 +37,6 @@ function MPI_Barrier(comm::MPI_Comm)
 end
 
 function MPI_Comm_rank(comm::MPI_Comm)
-    @show :MPI_Comm_rank MPI_COMM_WORLD # MPI_Comm(cglobal((:ompi_mpi_comm_world, libmpi)))
     rank = Ref{Cint}()
     ierr = @ccall libmpi.MPI_Comm_rank(comm::MPI_Comm, rank::Ref{Cint})::Cint
     chkerr(ierr)

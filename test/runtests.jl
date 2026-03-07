@@ -6,11 +6,7 @@ using Test
 const M = MPINext
 
 # Which rank are we? Get this straight from the MPI implementation, MPI has not been initialized yet.
-
-# MPICH_jll
-const rank_from_env = parse(Int, get(ENV, "PMI_RANK", "0"))
-const size_from_env = parse(Int, get(ENV, "PMI_SIZE", "1"))
-# OpenMPI_jll: "OMPI_COMM_WORLD_RANK", "OMPI_COMM_WORLD_SIZE"
+const rank_from_env, size_from_env = M.get_rank_size_from_env()
 
 # Clean up the output. Only the root process's output is shown, others go to log files only.
 const logfilename = "MPINext_test.$rank_from_env.log"

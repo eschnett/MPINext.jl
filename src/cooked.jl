@@ -49,7 +49,8 @@ Datatype(::Type{T}) where {T<:predefined_mpi_types} = Datatype(convert(MPI_Datat
 
 Base.convert(::Type{Type}, datatype::Datatype) = convert(Type, datatype.val)
 
-export OP_NULL
+export OP_NULL,
+    OP_SUM, OP_MIN, OP_MAX, OP_PROD, OP_BAND, OP_BOR, OP_BXOR, OP_LAND, OP_LOR, OP_LXOR, OP_MINLOC, OP_MAXLOC, OP_REPLACE, OP_NO_OP
 const OP_NULL = Op(MPI_OP_NULL)
 const OP_SUM = Op(MPI_SUM)
 const OP_MIN = Op(MPI_MIN)
@@ -72,6 +73,32 @@ Op(::typeof(*)) = OP_PROD
 Op(::typeof(&)) = OP_BAND
 Op(::typeof(|)) = OP_BOR
 Op(::typeof(⊻)) = OP_BXOR
+
+function init_cooked_constants()
+    if MPIPreferences.abi == "OpenMPI"
+        COMM_WORLD.val=MPI_COMM_WORLD
+        COMM_NULL.val = MPI_COMM_NULL
+        COMM_SELF.val = MPI_COMM_SELF
+
+        OP_NULL.val = MPI_OP_NULL
+        OP_SUM.val = MPI_SUM
+        OP_MIN.val = MPI_MIN
+        OP_MAX.val = MPI_MAX
+        OP_PROD.val = MPI_PROD
+        OP_BAND.val = MPI_BAND
+        OP_BOR.val = MPI_BOR
+        OP_BXOR.val = MPI_BXOR
+        OP_LAND.val = MPI_LAND
+        OP_LOR.val = MPI_LOR
+        OP_LXOR.val = MPI_LXOR
+        OP_MINLOC.val = MPI_MINLOC
+        OP_MAXLOC.val = MPI_MAXLOC
+        OP_REPLACE.val = MPI_REPLACE
+        OP_NO_OP.val = MPI_NO_OP
+    end
+
+    nothing
+end
 
 ################################################################################
 
