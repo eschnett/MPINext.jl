@@ -4,7 +4,7 @@ on:
   - pull_request
 jobs:
   test:
-    name: Julia ${{matrix.version}} - ${{matrix.os}} - ${{matrix.arch}} - ${{github.event_name}}
+    name: Julia ${{matrix.version}} - ${{matrix.os}} - ${{matrix.arch}} - ${{matrix.mpi}} - ${{github.event_name}}
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
@@ -13,30 +13,43 @@ jobs:
           - arch: "x64"
             os: "macOS-15-intel"
             version: "1.12"
+            mpi: MPICH
           - arch: "x64"
             os: "ubuntu-24.04"
             version: "1.12"
+            mpi: MPICH
+          - arch: "x64"
+            os: "ubuntu-24.04"
+            version: "1.12"
+            mpi: OpenMPI
           #TODO - arch: "x64"
           #TODO   os: "windows-2025"
           #TODO   version: "1.12"
+          #TODO mpi: MicrosoftMPI
           - arch: "arm64"
             os: "macOS-26"
             version: "1.12"
+            mpi: MPICH
           - arch: "arm64"
             os: "ubuntu-24.04-arm"
             version: "1.12"
+            mpi: MPICH
           - arch: "x86"
             os: "ubuntu-24.04"
             version: "1.12"
+            mpi: MPICH
           - arch: "x64"
             os: "ubuntu-24.04"
             version: "^1.13.0-beta1"
+            mpi: MPICH
           - arch: "x64"
             os: "ubuntu-24.04"
             version: "1.11"
+            mpi: MPICH
           - arch: "x64"
             os: "ubuntu-24.04"
             version: "1.10"
+            mpi: MPICH
     steps:
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
@@ -44,6 +57,12 @@ jobs:
           version: ${{matrix.version}}
           arch: ${{matrix.arch}}
       - uses: julia-actions/cache@v2
+      - name: "Select MPI"
+        run: |
+          julia --project=@. --eval '
+              using MPIPreferences
+              MPIPreferences.use_jll_binary("${{matrix.mpi}}_jll")
+          '
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - name: "Run multi-process tests"
@@ -52,7 +71,8 @@ jobs:
               using MPICH_jll
               MPICH_jll.mpiexec() do mpiexec
                   run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`)
-              end'
+              end
+          '
           cat MPINext_test.0.log
           cat MPINext_test.1.log
           cat MPINext_test.2.log
