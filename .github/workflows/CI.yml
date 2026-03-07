@@ -54,10 +54,10 @@ jobs:
               Pkg.add("MPIPreferences")
               using MPIPreferences
               MPIPreferences.use_jll_binary("${{matrix.mpi}}_jll")
-              if "${{matrix.mpi}}" == "OpenMPI" && sizeof(Ptr) == 4
-                  # Use OpenMPI 4 on 32-bit platforms
-                  Pkg.add(name="OpenMPI_jll", version="4")
-              end
+              # if "${{matrix.mpi}}" == "OpenMPI" && sizeof(Ptr) == 4
+              #     # Use OpenMPI 4 on 32-bit platforms
+              #     Pkg.add(name="OpenMPI_jll", version="4")
+              # end
           '
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
