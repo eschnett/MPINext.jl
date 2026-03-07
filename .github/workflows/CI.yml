@@ -60,6 +60,8 @@ jobs:
       - name: "Select MPI"
         run: |
           julia --project=@. --eval '
+              using Pkg
+              Pkg.add("MPIPreferences")
               using MPIPreferences
               MPIPreferences.use_jll_binary("${{matrix.mpi}}_jll")
           '
