@@ -4,14 +4,14 @@ on:
   - pull_request
 jobs:
   test:
-    name: Julia ${{matrix.version}} - ${{matrix.os}} - ${{matrix.arch}} - ${{matrix.mpi}} - ${{github.event_name}}
-    runs-on: ${{matrix.os}}
+    name: Julia ${{matrix.config.version}} - ${{matrix.config.os}} - ${{matrix.config.arch}} - ${{matrix.mpi}} - ${{github.event_name}}
+    runs-on: ${{matrix.config.os}}
     strategy:
       fail-fast: false
       matrix:
         # See <https://julialang-s3.julialang.org/bin/versions.json> for available Julia versions
         mpi: [MPICH, OpenMPI]
-        include:
+        config:
           - arch: "x64"
             os: "macOS-15-intel"
             version: "1.12"
@@ -47,8 +47,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: julia-actions/setup-julia@v2
         with:
-          version: ${{matrix.version}}
-          arch: ${{matrix.arch}}
+          version: ${{matrix.config.version}}
+          arch: ${{matrix.config.arch}}
       - uses: julia-actions/cache@v2
       - name: "Select MPI"
         run: |
@@ -62,7 +62,8 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
       - name: "Run multi-process tests"
         env:
-          OMPI_MCA_rmaps_base_oversubscribe: "true"
+          OMPI_MCA_orte_default_hostfile=""
+          PRTE_MCA_rmaps_default_mapping_policy="slot:oversubscribe"
         run: |
           julia --project=@. --eval '
               using MPINext
