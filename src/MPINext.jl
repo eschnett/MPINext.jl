@@ -63,18 +63,10 @@ function get_rank_size_from_env()
     return rank, size
 end
 
-@static if abi == "MPIABI"
-    include("raw_constants_mpiabi.jl")
-elseif abi == "MPICH"
-    include("raw_constants_mpich.jl")
-elseif abi == "OpenMPI"
-    include("raw_constants_openmpi.jl")
-else
-    error("Unknown MPI abi: $(MPIPreferences.abi)")
-end
-
+include("raw_constants.jl")
 include("raw_functions.jl")
 
-include("cooked.jl")
+include("cooked_constants.jl")
+include("cooked_functions.jl")
 
 end

@@ -5,7 +5,15 @@ const MPI_Offset = Int64
 
 const MPI_Comm = Cint
 const MPI_Datatype = Cint
+const MPI_Errhandler = Cint
+const MPI_File = Cint
+const MPI_Group = Cint
+const MPI_Info = Cint
+const MPI_Message = Cint
 const MPI_Op = Cint
+const MPI_Request = Cint
+const MPI_Session = Cint
+const MPI_Win = Cint
 
 struct MPI_Status
     _private0::Cint
@@ -14,6 +22,12 @@ struct MPI_Status
     MPI_TAG::Cint
     MPI_ERROR::Cint
 end
+
+const MPI_T_cvar_handle = Cint
+const MPI_T_event_instance = Cint
+const MPI_T_event_registration = Cint
+const MPI_T_pvar_handle = Cint
+const MPI_T_pvar_session = Cint
 
 ################################################################################
 
