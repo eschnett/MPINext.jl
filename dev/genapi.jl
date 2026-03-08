@@ -54,8 +54,9 @@ function kind_is_large(kindstr)
     return haskey(kind, :_iso_c_large)
 end
 
-function kind2ccalltype(kind; large::Bool)
-    kind = kinds[kind]
+function kind2ccalltype(kindstr; large::Bool)
+    kind = kinds[kindstr]
+    kind[:name] in ["FUNCTION", "POLYFUNCTION"] && return "Base.CFunction" # function pointer
     ctype = kind[large && haskey(kind, :_iso_c_large) ? :_iso_c_large : :_iso_c_small]
     return Dict(
         "MPI_Aint" => "MPI_Aint",
@@ -86,7 +87,7 @@ function kind2ccalltype(kind; large::Bool)
         "char" => "Cchar",      # actually Cstring most of the time
         "double" => "Cdouble",
         "int" => "Cint",
-        "void" => "Cvoid",
+        "void" => "Cvoid",      # actually Ptr{Cvoid}
     )[ctype]
 end
 
@@ -103,7 +104,6 @@ function gen_function(api; large::Bool)
 
     # Ignore some functions
     !attributes["c_expressible"] && return nothing
-    attributes["callback"] && return nothing # TODO
     attributes["predefined_function"] != nothing && return nothing # TODO
 
     # Check parameters
@@ -123,10 +123,9 @@ function gen_function(api; large::Bool)
         # @assert !parameter["large_only"]
         @assert !parameter["optional"]
 
-        if parameter["func_type"] != "" ||
-            parameter["kind"] in ["EVENT_CB_FUNCTION", "EVENT_DROP_CB_FUNCTION", "EVENT_FREE_CB_FUNCTION"]
+        if  parameter["kind"] in ["EVENT_CB_FUNCTION", "EVENT_DROP_CB_FUNCTION", "EVENT_FREE_CB_FUNCTION"]
             return """
-            # $name [skipped -- callbacks are not yet implemented]
+            # $name [skipped -- MPI_T callbacks are not yet implemented]
             """
         end
 
@@ -160,8 +159,8 @@ function gen_function(api; large::Bool)
         ccalltype = kind2ccalltype(param.kind; large)
         funtype = ccalltype2funtype(ccalltype)
 
-        # Strings are special
         if ccalltype == "Cchar"
+            # Strings are special
             if param.param_direction == indir
                 @assert !param.pointer
                 if param.length == nothing
@@ -200,6 +199,21 @@ function gen_function(api; large::Bool)
             else
                 @assert false
             end
+
+        elseif ccalltype == "Cvoid"
+            # Buffers are special
+            ccalltype = "Ptr{Cvoid}"
+            funtype = "Union{Ptr,Ref,Array}"
+
+        elseif ccalltype == "MPI_Status"
+            # Status objects are special
+            ccalltype = "Ref{MPI_Status}"
+            funtype = "Union{Ref{MPI_Status},Ptr{MPI_Status}}"
+
+        elseif ccalltype == "Base.CFunction"
+            # Function pointers are special
+            ccalltype = "Ptr{Cvoid}"
+            funtype = "Union{Ptr{Cvoid},Base.CFunction}"
 
         else
             # Not a string

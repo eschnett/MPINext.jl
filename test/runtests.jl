@@ -29,11 +29,11 @@ println("+++ MPI version ", get_version())
 ################################################################################
 
 @testset "MPI_Init" begin
-    @test !mpi_initialized()
-    @test !mpi_finalized()
-    mpi_init()
-    @test mpi_initialized()
-    @test !mpi_finalized()
+    @test !initialized()
+    @test !finalized()
+    init()
+    @test initialized()
+    @test !finalized()
 end
 
 const rank = comm_rank(COMM_WORLD)
@@ -306,11 +306,11 @@ end
 
 barrier(COMM_WORLD)
 @testset "MPI_Finalize" begin
-    @test mpi_initialized()
-    @test !mpi_finalized()
-    mpi_finalize()
-    @test mpi_initialized()
-    @test mpi_finalized()
+    @test initialized()
+    @test !finalized()
+    finalize()
+    @test initialized()
+    @test finalized()
 end
 
 println("+++ Done.")

@@ -33,6 +33,8 @@ const MPI_T_pvar_session = Cint
 
 const MPI_SUCCESS::Cint = 0
 
+const MPI_UNDEFINED::Cint = -32766
+
 const MPI_MAX_DATAREP_STRING::Cint = 128
 const MPI_MAX_ERROR_STRING::Cint = 512
 const MPI_MAX_INFO_KEY::Cint = 256

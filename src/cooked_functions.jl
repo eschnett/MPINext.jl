@@ -41,6 +41,7 @@ function comm_size(comm::Comm)
     return Int(size[])
 end
 
+import Base.finalize
 export finalize
 function finalize()
     finalized() && return nothing
@@ -127,7 +128,7 @@ function op_create(user_fn, commute::Bool)
     op.data = c_user_fn
     finalizer(op) do op
         op.val == MPI_OP_NULL && return nothing
-        mpi_finalized() && return nothing
+        finalized() && return nothing
         op_free(op)
     end
     return op
@@ -192,8 +193,11 @@ function reduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Dat
     chkerr(ierr)
 end
 function reduce!(sendbuf::Buffer, recvbuf::Buffer, datatype::Datatype, op::Op, root::Integer, comm::Comm)
+    rank = comm_rank(comm)
     count = buffer_count(sendbuf)
-    @assert buffer_count(recvbuf) == count
+    if rank == root
+        @assert buffer_count(recvbuf) == count
+    end
     reduce!(sendbuf, recvbuf, count, datatype, op, root, comm)
 end
 function reduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, op::Op, root::Integer, comm::Comm)
@@ -202,8 +206,11 @@ function reduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, op::Op, root:
     reduce!(sendbuf, recvbuf, count, datatype, op, root, comm)
 end
 function reduce!(sendbuf::Buffer, recvbuf::Buffer, op::Op, root::Integer, comm::Comm)
+    rank = comm_rank(comm)
     datatype = buffer_datatype(sendbuf)
-    @assert buffer_datatype(recvbuf) == datatype
+    if rank == root
+        @assert buffer_datatype(recvbuf) == datatype
+    end
     reduce!(sendbuf, recvbuf, datatype, op, root, comm)
 end
 function reduce(sendbuf::Buffer, op::Op, root::Integer, comm::Comm)
@@ -213,7 +220,8 @@ function reduce(sendbuf::Buffer, op::Op, root::Integer, comm::Comm)
     return rank == root ? recvbuf : nothing
 end
 function reduce(sendnumber::Number, op::Op, root::Integer, comm::Comm)
-    return reduce(Ref(sendnumber), op, root, comm)[]
+    result = reduce(Ref(sendnumber), op, root, comm)
+    return result === nothing ? nothing : result[]
 end
 
 export send

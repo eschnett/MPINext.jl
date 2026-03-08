@@ -6,11 +6,13 @@ export Comm
 mutable struct Comm
     val::MPI_Comm
 end
+Base.:(==)(comm1::Comm, comm2::Comm) = comm1.val == comm2.val
 
 export Datatype
 mutable struct Datatype
     val::MPI_Datatype
 end
+Base.:(==)(datatype1::Datatype, datatype2::Datatype) = datatype1.val == datatype2.val
 
 export Op
 mutable struct Op
@@ -18,6 +20,7 @@ mutable struct Op
     data
     Op(val::MPI_Op) = new(val, nothing)
 end
+Base.:(==)(op1::Op, op2::Op) = op1.val == op2.val
 
 export Status
 const Status = MPI_Status
