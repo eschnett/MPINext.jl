@@ -123,7 +123,7 @@ function gen_function(api; large::Bool)
         # @assert !parameter["large_only"]
         @assert !parameter["optional"]
 
-        if  parameter["kind"] in ["EVENT_CB_FUNCTION", "EVENT_DROP_CB_FUNCTION", "EVENT_FREE_CB_FUNCTION"]
+        if parameter["kind"] in ["EVENT_CB_FUNCTION", "EVENT_DROP_CB_FUNCTION", "EVENT_FREE_CB_FUNCTION"]
             return """
             # $name [skipped -- MPI_T callbacks are not yet implemented]
             """

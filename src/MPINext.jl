@@ -1,6 +1,6 @@
 module MPINext
 
-#TODO using Libdl
+using Libdl
 using MPIPreferences
 
 const binary = MPIPreferences.binary
@@ -34,14 +34,18 @@ function __init__()
 
     init_raw_constants()
     init_cooked_constants()
+    init_cooked_function()
 end
 
 @static if binary == "MPIABI_jll"
     using MPIABI_jll
+    const libmpi_handle = MPIABI_jll.libmpi_handle
 elseif binary == "MPICH_jll"
     using MPICH_jll
+    const libmpi_handle = MPICH_jll.libmpi_handle
 elseif binary == "OpenMPI_jll"
     using OpenMPI_jll
+    const libmpi_handle = OpenMPI_jll.libmpi_handle
 else
     error("Unknown MPI binary: $(MPIPreferences.binary)")
 end

@@ -3,9 +3,29 @@ const MPI_Fint = Int32
 const MPI_Count = Int64
 const MPI_Offset = Int64
 
-const MPI_Comm = Ptr{Cvoid}
-const MPI_Datatype = Ptr{Cvoid}
-const MPI_Op = Ptr{Cvoid}
+struct OMPI_MPI_Comm end
+struct OMPI_MPI_Datatype end
+struct OMPI_MPI_Errhandler end
+struct OMPI_MPI_File end
+struct OMPI_MPI_Group end
+struct OMPI_MPI_Info end
+struct OMPI_MPI_Message end
+struct OMPI_MPI_Op end
+struct OMPI_MPI_Request end
+struct OMPI_MPI_Session end
+struct OMPI_MPI_Win end
+
+const MPI_Comm = Ptr{OMPI_MPI_Comm}
+const MPI_Datatype = Ptr{OMPI_MPI_Datatype}
+const MPI_Errhandler = Ptr{OMPI_MPI_Errhandler}
+const MPI_File = Ptr{OMPI_MPI_File}
+const MPI_Group = Ptr{OMPI_MPI_Group}
+const MPI_Info = Ptr{OMPI_MPI_Info}
+const MPI_Message = Ptr{OMPI_MPI_Message}
+const MPI_Op = Ptr{OMPI_MPI_Op}
+const MPI_Request = Ptr{OMPI_MPI_Request}
+const MPI_Session = Ptr{OMPI_MPI_Session}
+const MPI_Win = Ptr{OMPI_MPI_Win}
 
 struct MPI_Status
     MPI_SOURCE::Cint
@@ -15,9 +35,23 @@ struct MPI_Status
     _private1::Csize_t
 end
 
+struct OMPI_MPI_T_cvar_handle end
+struct OMPI_MPI_T_event_instance end
+struct OMPI_MPI_T_event_registration end
+struct OMPI_MPI_T_pvar_handle end
+struct OMPI_MPI_T_pvar_session end
+
+const MPI_T_cvar_handle = Ptr{OMPI_MPI_T_cvar_handle}
+const MPI_T_event_instance = Ptr{OMPI_MPI_T_event_instance}
+const MPI_T_event_registration = Ptr{OMPI_MPI_T_event_registration}
+const MPI_T_pvar_handle = Ptr{OMPI_MPI_T_pvar_handle}
+const MPI_T_pvar_session = Ptr{OMPI_MPI_T_pvar_session}
+
 ################################################################################
 
 const MPI_SUCCESS::Cint = 0
+
+const MPI_UNDEFINED::Cint = -32766
 
 const MPI_MAX_DATAREP_STRING::Cint = 128
 const MPI_MAX_ERROR_STRING::Cint = 512

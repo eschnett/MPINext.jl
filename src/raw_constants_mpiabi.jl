@@ -5,10 +5,27 @@ const MPI_Offset = Int64
 
 struct MPI_ABI_Comm end
 struct MPI_ABI_Datatype end
+struct MPI_ABI_Errhandler end
+struct MPI_ABI_File end
+struct MPI_ABI_Group end
+struct MPI_ABI_Info end
+struct MPI_ABI_Message end
 struct MPI_ABI_Op end
+struct MPI_ABI_Request end
+struct MPI_ABI_Session end
+struct MPI_ABI_Win end
+
 const MPI_Comm = Ptr{MPI_ABI_Comm}
 const MPI_Datatype = Ptr{MPI_ABI_Datatype}
+const MPI_Errhandler = Ptr{MPI_ABI_Errhandler}
+const MPI_File = Ptr{MPI_ABI_File}
+const MPI_Group = Ptr{MPI_ABI_Group}
+const MPI_Info = Ptr{MPI_ABI_Info}
+const MPI_Message = Ptr{MPI_ABI_Message}
 const MPI_Op = Ptr{MPI_ABI_Op}
+const MPI_Request = Ptr{MPI_ABI_Request}
+const MPI_Session = Ptr{MPI_ABI_Session}
+const MPI_Win = Ptr{MPI_ABI_Win}
 
 struct MPI_Status
     MPI_SOURCE::Cint
@@ -16,6 +33,18 @@ struct MPI_Status
     MPI_ERROR::Cint
     MPI_internal::NTuple{5,Cint}
 end
+
+struct MPI_ABI_T_cvar_handle end
+struct MPI_ABI_T_event_instance end
+struct MPI_ABI_T_event_registration end
+struct MPI_ABI_T_pvar_handle end
+struct MPI_ABI_T_pvar_session end
+
+const MPI_T_cvar_handle = Ptr{MPI_ABI_T_cvar_handle}
+const MPI_T_event_instance = Ptr{MPI_ABI_T_event_instance}
+const MPI_T_event_registration = Ptr{MPI_ABI_T_event_registration}
+const MPI_T_pvar_handle = Ptr{MPI_ABI_T_pvar_handle}
+const MPI_T_pvar_session = Ptr{MPI_ABI_T_pvar_session}
 
 ################################################################################
 

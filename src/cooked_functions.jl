@@ -2,6 +2,12 @@
 # If not then we won't call MPI_Finalize either.
 const did_init = Ref(false)
 
+const have_MPI_Get_count_c = Ref(false)
+
+function init_cooked_function()
+    have_MPI_Get_count_c[] = dlsym(libmpi_handle, "MPI_Get_count_c"; throw_error=false) !== nothing
+end
+
 ################################################################################
 
 function chkerr(ierr::Integer)
@@ -59,13 +65,25 @@ end
 
 export get_count
 function get_count(status::Ref{Status}, datatype::Datatype)
-    count = Ref{MPI_Count}()
-    GC.@preserve datatype begin
-        ierr = MPI_Get_count_c(status, datatype.val, count)
+    if have_MPI_Get_count_c[]
+        # Use the large-count version if possible
+        count = Ref{MPI_Count}()
+        GC.@preserve datatype begin
+            ierr = MPI_Get_count_c(status, datatype.val, count)
+        end
+        chkerr(ierr)
+        count[] == MPI_UNDEFINED && return nothing
+        return Int(count[])
+    else
+        # Otherwise fall back to the 32-bit version
+        count = Ref{Cint}()
+        GC.@preserve datatype begin
+            ierr = MPI_Get_count(status, datatype.val, count)
+        end
+        chkerr(ierr)
+        count[] == MPI_UNDEFINED && return nothing
+        return Int(count[])
     end
-    chkerr(ierr)
-    count[] == MPI_UNDEFINED && return nothing
-    return Int(count[])
 end
 
 export get_library_version

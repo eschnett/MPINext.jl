@@ -1,3 +1,4 @@
+*.log
 LocalPreferences.toml
 Manifest.toml
-*.log
+data
