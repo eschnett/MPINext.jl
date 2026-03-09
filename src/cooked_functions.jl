@@ -2,10 +2,28 @@
 # If not then we won't call MPI_Finalize either.
 const did_init = Ref(false)
 
+const have_MPI_Allgather_c = Ref(false)
+const have_MPI_Allreduce_c = Ref(false)
+const have_MPI_Gather_c = Ref(false)
 const have_MPI_Get_count_c = Ref(false)
+const have_MPI_Irecv_c = Ref(false)
+const have_MPI_Isend_c = Ref(false)
+const have_MPI_Recv_c = Ref(false)
+const have_MPI_Reduce_c = Ref(false)
+const have_MPI_Send_c = Ref(false)
+const have_MPI_Sendrecv_c = Ref(false)
 
 push!(init_functions, function ()
+    have_MPI_Allgather_c[] = dlsym(libmpi_handle[], "MPI_Allgather_c"; throw_error=false) !== nothing
+    have_MPI_Allreduce_c[] = dlsym(libmpi_handle[], "MPI_Allreduce_c"; throw_error=false) !== nothing
+    have_MPI_Gather_c[] = dlsym(libmpi_handle[], "MPI_Gather_c"; throw_error=false) !== nothing
     have_MPI_Get_count_c[] = dlsym(libmpi_handle[], "MPI_Get_count_c"; throw_error=false) !== nothing
+    have_MPI_Irecv_c[] = dlsym(libmpi_handle[], "MPI_Irecv_c"; throw_error=false) !== nothing
+    have_MPI_Isend_c[] = dlsym(libmpi_handle[], "MPI_Isend_c"; throw_error=false) !== nothing
+    have_MPI_Recv_c[] = dlsym(libmpi_handle[], "MPI_Recv_c"; throw_error=false) !== nothing
+    have_MPI_Reduce_c[] = dlsym(libmpi_handle[], "MPI_Reduce_c"; throw_error=false) !== nothing
+    have_MPI_Send_c[] = dlsym(libmpi_handle[], "MPI_Send_c"; throw_error=false) !== nothing
+    have_MPI_Sendrecv_c[] = dlsym(libmpi_handle[], "MPI_Sendrecv_c"; throw_error=false) !== nothing
 end)
 
 ################################################################################
@@ -79,7 +97,11 @@ export irecv!
 function irecv!(buf::Buffer, count::Integer, datatype::Datatype, source::Integer, tag::Integer, comm::Comm)
     c_request = Ref{MPI_Request}()
     GC.@preserve buf datatype comm begin
-        ierr = MPI_Irecv(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_request)
+        if have_MPI_Irecv_c[]
+            ierr = MPI_Irecv_c(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_request)
+        else
+            ierr = MPI_Irecv(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_request)
+        end
     end
     chkerr(ierr)
     request = Request(c_request[])
@@ -109,7 +131,11 @@ export isend
 function isend(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
     c_request = Ref{MPI_Request}()
     GC.@preserve buf datatype comm begin
-        ierr = MPI_Isend(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val, c_request)
+        if have_MPI_Isend_c[]
+            ierr = MPI_Isend_c(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val, c_request)
+        else
+            ierr = MPI_Isend(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val, c_request)
+        end
     end
     chkerr(ierr)
     request = Request(c_request[])
@@ -148,7 +174,11 @@ function recv!(
 )
     c_status = status === nothing ? MPI_STATUS_IGNORE : status
     GC.@preserve buf datatype comm begin
-        ierr = MPI_Recv(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_status)
+        if have_MPI_Recv_c[]
+            ierr = MPI_Recv_c(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_status)
+        else
+            ierr = MPI_Recv(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_status)
+        end
     end
     chkerr(ierr)
 end
@@ -191,7 +221,11 @@ free(request::Request) = request_free(request)
 export send
 function send(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
     GC.@preserve buf datatype comm begin
-        ierr = MPI_Send(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val)
+        if have_MPI_Send_c[]
+            ierr = MPI_Send_c(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val)
+        else
+            ierr = MPI_Send(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val)
+        end
     end
     chkerr(ierr)
 end
@@ -224,20 +258,37 @@ function sendrecv!(
 )
     c_status = status === nothing ? MPI_STATUS_IGNORE : status
     GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
-        ierr = MPI_Sendrecv(
-            buffer_ptr(sendbuf),
-            sendcount,
-            sendtype.val,
-            dest,
-            sendtag,
-            buffer_ptr(recvbuf),
-            recvcount,
-            recvtype.val,
-            source,
-            recvtag,
-            comm.val,
-            c_status,
-        )
+        if have_MPI_Sendrecv_c[]
+            ierr = MPI_Sendrecv_c(
+                buffer_ptr(sendbuf),
+                sendcount,
+                sendtype.val,
+                dest,
+                sendtag,
+                buffer_ptr(recvbuf),
+                recvcount,
+                recvtype.val,
+                source,
+                recvtag,
+                comm.val,
+                c_status,
+            )
+        else
+            ierr = MPI_Sendrecv(
+                buffer_ptr(sendbuf),
+                sendcount,
+                sendtype.val,
+                dest,
+                sendtag,
+                buffer_ptr(recvbuf),
+                recvcount,
+                recvtype.val,
+                source,
+                recvtag,
+                comm.val,
+                c_status,
+            )
+        end
     end
     chkerr(ierr)
 end
@@ -320,7 +371,15 @@ function allgather!(
     sendbuf::Buffer, sendcount::Integer, sendtype::Datatype, recvbuf::Buffer, recvcount::Integer, recvtype::Datatype, comm::Comm
 )
     GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
-        ierr = MPI_Allgather(buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, comm.val)
+        if have_MPI_Allgather_c[]
+            ierr = MPI_Allgather_c(
+                buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, comm.val
+            )
+        else
+            ierr = MPI_Allgather(
+                buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, comm.val
+            )
+        end
     end
     chkerr(ierr)
 end
@@ -355,7 +414,11 @@ end
 export allreduce!, allreduce
 function allreduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Datatype, op::Op, comm::Comm)
     GC.@preserve sendbuf recvbuf datatype op comm begin
-        ierr = MPI_Allreduce(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        if have_MPI_Allreduce_c[]
+            ierr = MPI_Allreduce_c(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        else
+            ierr = MPI_Allreduce(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        end
     end
     chkerr(ierr)
 end
@@ -403,9 +466,15 @@ function gather!(
     comm::Comm,
 )
     GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
-        ierr = MPI_Gather(
-            buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, root, comm.val
-        )
+        if have_MPI_Gather_c[]
+            ierr = MPI_Gather_c(
+                buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, root, comm.val
+            )
+        else
+            ierr = MPI_Gather(
+                buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, root, comm.val
+            )
+        end
     end
     chkerr(ierr)
 end
@@ -481,7 +550,11 @@ export reduce!
 import Base.reduce
 function reduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Datatype, op::Op, root::Integer, comm::Comm)
     GC.@preserve sendbuf recvbuf datatype op comm begin
-        ierr = MPI_Reduce(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, root, comm.val)
+        if have_MPI_Reduce_c[]
+            ierr = MPI_Reduce_c(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, root, comm.val)
+        else
+            ierr = MPI_Reduce(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, root, comm.val)
+        end
     end
     chkerr(ierr)
 end
