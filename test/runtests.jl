@@ -271,17 +271,23 @@ barrier(COMM_WORLD)
             x = Ref(input(rank))
             y = Ref{T}()
 
-            reduce!(x, y, op, 0, COMM_WORLD)
+            reduce!(x, y, op, root, COMM_WORLD)
             if rank == root
                 @test y[] == output
             end
 
-            z = reduce(x[], op, 0, COMM_WORLD)
+            z = reduce(x[], op, root, COMM_WORLD)
             if rank == root
                 @test z == output
             else
                 @test z === nothing
             end
+
+            allreduce!(x, y, op, COMM_WORLD)
+            @test y[] == output
+
+            z = allreduce(x[], op, COMM_WORLD)
+            @test z == output
 
             for D in 0:4
                 sz = ntuple(d -> d+2, D)
@@ -299,6 +305,14 @@ barrier(COMM_WORLD)
                 else
                     @test z === nothing
                 end
+
+                y = similar(x)
+
+                allreduce!(x, y, op, COMM_WORLD)
+                @test all(==(output), y)
+
+                z = allreduce(x, op, COMM_WORLD)
+                @test all(==(output), z)
             end
         end
     end
