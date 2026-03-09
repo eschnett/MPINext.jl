@@ -60,18 +60,20 @@ jobs:
               end
           '
       - uses: julia-actions/julia-buildpkg@v1
-      # The `julia-runtest` action always runs MPICH. We need to find out how to properly switch to OpenMPI.
+      # The `julia-runtest` action always runs MPICH.
+      # We need to find out how to properly switch to OpenMPI.
+      # (This has also broken Codecov.)
       # - uses: julia-actions/julia-runtest@v1
       - name: "Run single-process tests"
         run: |
-          julia --project=@. test/runtests.jl
+          julia --project=@. --startup-file=no --code-coverage=user --check-bounds=yes test/runtests.jl
       - name: "Run multi-process tests"
         run: |
           julia --project=@. --eval '
               using MPINext
               MPINext.mpiexec() do mpiexec
                   if "${{matrix.mpi}}" == "OpenMPI"
-                      run(`$mpiexec --oversubscribe -n 4 julia --project=@. test/runtests.jl`)
+                      run(`$mpiexec --oversubscribe -n 4 julia --project=@. --startup-file=no --code-coverage=user --check-bounds=yes test/runtests.jl`)
                   else
                       run(`$mpiexec -n 4 julia --project=@. test/runtests.jl`)
                   end
