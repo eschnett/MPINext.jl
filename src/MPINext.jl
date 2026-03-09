@@ -10,7 +10,12 @@ const abi = MPIPreferences.abi
 
 const libmpi_handle = Ref(Ptr{Nothing}())
 
+# These are initialization functions, to be run when the module is
+# loaded, i.e. to be called from `__init__`. They are executed in
+# order. This means that the order in which they are added to this
+# list does matter.
 const init_functions = []
+
 function __init__()
     # Produce an error if the preferences changed. If so, Julia must be restarted.
     MPIPreferences.check_unchanged()
