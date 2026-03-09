@@ -5,7 +5,7 @@ elseif abi == "MPICH"
 elseif abi == "OpenMPI"
     include("raw_constants_openmpi.jl")
 else
-    error("Unknown MPI abi: $(MPIPreferences.abi)")
+    error("Unknown MPI abi: $abi")
 end
 
 const predefined_mpi_types_list = [Cint, Clonglong, Cfloat, Cdouble]

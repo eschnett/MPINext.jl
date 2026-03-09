@@ -90,5 +90,3 @@ const MPI_REPLACE = MPI_Op(0x0000003c)
 const MPI_NO_OP = MPI_Op(0x0000003d)
 
 const MPI_STATUS_IGNORE = Ptr{MPI_Status}(0)
-
-init_raw_constants() = nothing

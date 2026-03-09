@@ -94,7 +94,7 @@ const MPI_STATUS_IGNORE = Ptr{MPI_Status}(0)
 
 ################################################################################
 
-function init_raw_constants()
+push!(init_functions, function ()
     global MPI_COMM_NULL = MPI_Comm(cglobal((:ompi_mpi_comm_null, libmpi)))
     global MPI_COMM_SELF = MPI_Comm(cglobal((:ompi_mpi_comm_self, libmpi)))
     global MPI_COMM_WORLD = MPI_Comm(cglobal((:ompi_mpi_comm_world, libmpi)))
@@ -120,6 +120,4 @@ function init_raw_constants()
     global MPI_MAXLOC = MPI_Op(cglobal((:ompi_mpi_op_maxloc, libmpi)))
     global MPI_REPLACE = MPI_Op(cglobal((:ompi_mpi_op_replace, libmpi)))
     global MPI_NO_OP = MPI_Op(cglobal((:ompi_mpi_op_no_op, libmpi)))
-
-    nothing
-end
+end)

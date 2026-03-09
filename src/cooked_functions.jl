@@ -4,9 +4,9 @@ const did_init = Ref(false)
 
 const have_MPI_Get_count_c = Ref(false)
 
-function init_cooked_function()
-    have_MPI_Get_count_c[] = dlsym(libmpi_handle, "MPI_Get_count_c"; throw_error=false) !== nothing
-end
+push!(init_functions, function ()
+    have_MPI_Get_count_c[] = dlsym(libmpi_handle[], "MPI_Get_count_c"; throw_error=false) !== nothing
+end)
 
 ################################################################################
 

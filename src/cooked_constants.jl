@@ -63,9 +63,9 @@ Op(::typeof(&)) = OP_BAND
 Op(::typeof(|)) = OP_BOR
 Op(::typeof(⊻)) = OP_BXOR
 
-function init_cooked_constants()
-    if MPIPreferences.abi == "OpenMPI"
-        COMM_WORLD.val=MPI_COMM_WORLD
+push!(init_functions, function ()
+    if abi == "OpenMPI"
+        COMM_WORLD.val = MPI_COMM_WORLD
         COMM_NULL.val = MPI_COMM_NULL
         COMM_SELF.val = MPI_COMM_SELF
 
@@ -85,8 +85,7 @@ function init_cooked_constants()
         OP_REPLACE.val = MPI_REPLACE
         OP_NO_OP.val = MPI_NO_OP
     end
-    nothing
-end
+end)
 
 ################################################################################
 

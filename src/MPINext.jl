@@ -3,11 +3,14 @@ module MPINext
 using Libdl
 using MPIPreferences
 
+export mpiexec
+
 const binary = MPIPreferences.binary
 const abi = MPIPreferences.abi
 
-export mpiexec
+const libmpi_handle = Ref(Ptr{Nothing}())
 
+const init_functions = []
 function __init__()
     # Produce an error if the preferences changed. If so, Julia must be restarted.
     MPIPreferences.check_unchanged()
@@ -32,22 +35,29 @@ function __init__()
     #TODO # `cglobal` calls don't trigger early `dlopen`-ing of the library.
     #TODO Base.invokelatest(init_constants)
 
-    init_raw_constants()
-    init_cooked_constants()
-    init_cooked_function()
+    if binary == "MPIABI_jll"
+        libmpi_handle[] = MPIABI_jll.libmpi_handle
+    elseif binary == "MPICH_jll"
+        libmpi_handle[] = MPICH_jll.libmpi_handle
+    elseif binary == "OpenMPI_jll"
+        libmpi_handle[] = OpenMPI_jll.libmpi_handle
+    else
+        error("Unknown MPI binary: $binary")
+    end
+
+    for fun in init_functions
+        fun()
+    end
 end
 
 @static if binary == "MPIABI_jll"
     using MPIABI_jll
-    const libmpi_handle = MPIABI_jll.libmpi_handle
 elseif binary == "MPICH_jll"
     using MPICH_jll
-    const libmpi_handle = MPICH_jll.libmpi_handle
 elseif binary == "OpenMPI_jll"
     using OpenMPI_jll
-    const libmpi_handle = OpenMPI_jll.libmpi_handle
 else
-    error("Unknown MPI binary: $(MPIPreferences.binary)")
+    error("Unknown MPI binary: $binary")
 end
 
 # Access `libmpi` to ensure that a working MPI implementation has been loaded
