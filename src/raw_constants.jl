@@ -28,17 +28,14 @@ const predefined_mpi_types = [
 ]
 Clong != Cint && push!(predefined_mpi_types, Tuple{Int64,Int32})
 
-# Skip `Clong`, it is either the same as `Cint` or as `Clonglong`.
-# Same for `Culong`.
-
-mpi_datatype(::Type{Cchar}) = MPI_SIGNED_CHAR
-mpi_datatype(::Type{Cshort}) = MPI_SHORT
-mpi_datatype(::Type{Cint}) = MPI_INT
-mpi_datatype(::Type{Clonglong}) = MPI_LONG_LONG
-mpi_datatype(::Type{Cuchar}) = MPI_UNSIGNED_CHAR
-mpi_datatype(::Type{Cushort}) = MPI_UNSIGNED_SHORT
-mpi_datatype(::Type{Cuint}) = MPI_UNSIGNED
-mpi_datatype(::Type{Culonglong}) = MPI_UNSIGNED_LONG_LONG
+mpi_datatype(::Type{Int8}) = MPI_INT8_T
+mpi_datatype(::Type{Int16}) = MPI_INT16_T
+mpi_datatype(::Type{Int32}) = MPI_INT32_T
+mpi_datatype(::Type{Int64}) = MPI_INT64_T
+mpi_datatype(::Type{UInt8}) = MPI_UINT8_T
+mpi_datatype(::Type{UInt16}) = MPI_UINT16_T
+mpi_datatype(::Type{UInt32}) = MPI_UINT32_T
+mpi_datatype(::Type{UInt64}) = MPI_UINT64_T
 
 mpi_datatype(::Type{Cfloat}) = MPI_FLOAT
 mpi_datatype(::Type{Cdouble}) = MPI_DOUBLE
@@ -79,8 +76,8 @@ function julia_type(mpi_datatype::Handle)
     mpi_datatype == MPI_INT8_T && return Int8
     mpi_datatype == MPI_UINT8_T && return UInt8
     mpi_datatype == MPI_CHAR && return Cchar
-    mpi_datatype == MPI_SIGNED_CHAR && return Cchar
-    mpi_datatype == MPI_UNSIGNED_CHAR && return Cuchar
+    mpi_datatype == MPI_SIGNED_CHAR && return Int8
+    mpi_datatype == MPI_UNSIGNED_CHAR && return UInt8
     mpi_datatype == MPI_BYTE && return UInt8
     mpi_datatype == MPI_INT16_T && return Int16
     mpi_datatype == MPI_UINT16_T && return UInt16
