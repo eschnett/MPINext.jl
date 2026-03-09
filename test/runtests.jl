@@ -10,8 +10,12 @@ const M = MPINext
 # A convenient helper function to initialize output buffers
 poison(::Type{T}) where {T<:Integer} = typemax(T)
 poison(::Type{T}) where {T<:AbstractFloat} = T(NaN)
+poison(::Type{Complex{T}}) where {T<:AbstractFloat} = Complex(poison(T), poison(T))
+poison(::Type{Tuple{T1,T2}}) where {T1,T2} = (poison(T1), poison(T2))
 ispoison(x::Integer) = x == typemax(x)
 ispoison(x::AbstractFloat) = isnan(x)
+ispoison(x::Complex{<:AbstractFloat}) = isnan(real(x)) || isnan(imag(x))
+ispoison(x::Tuple) = any(ispoison, x)
 
 ispoison(ref::Ref) = ispoison(ref[])
 ispoison(array::Array) = all(ispoison, array)
@@ -67,7 +71,7 @@ barrier(comm)
     DATATYPE_NULL::Datatype
     for T in M.predefined_mpi_types
         raw_datatype = M.mpi_datatype(T)
-        raw_datatype::Cint
+        raw_datatype::M.Handle
         T1 = julia_type(raw_datatype)
         @test T1 == T
         datatype = Datatype(T)
@@ -298,7 +302,7 @@ barrier(comm)
             @test all(recvbuf .== wantbuf)
         end
 
-        msg(proc) = T(2*proc+1)
+        msg(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
 
         # Scalar
         sendbuf = Ref(msg(rank))
@@ -436,13 +440,18 @@ barrier(comm)
             @test all(result .== wantbuf)
         end
 
-        operators = [(Op(+), +), (Op(min), min), (Op(max), max), (Op(*), *), (mysum, +), (mymin, min), (mymax, max), (myprod, *)]
-
+        operators = []
+        if T <: Union{Integer,AbstractFloat}
+            append!(
+                operators,
+                [(Op(+), +), (Op(min), min), (Op(max), max), (Op(*), *), (mysum, +), (mymin, min), (mymax, max), (myprod, *)],
+            )
+        end
         if T <: Integer
             append!(operators, [(Op(&), &), (Op(|), |), (Op(⊻), ⊻), (myband, &), (mybor, |), (mybxor, ⊻)])
         end
 
-        input(proc) = T(2*proc+1)
+        input(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
 
         for (op, julia_op) in operators
             output = reduce(julia_op, input(proc) for proc in 0:(size - 1))
