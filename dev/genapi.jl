@@ -92,7 +92,18 @@ function kind2ccalltype(kindstr; large::Bool)
 end
 
 function ccalltype2funtype(ccalltype)
-    return get(Dict("Cint" => "Integer", "Cstring" => "AbstractString"), ccalltype, ccalltype)
+    return get(
+        Dict(
+            "Cint" => "Integer",
+            "Cstring" => "AbstractString",
+            "MPI_Aint" => "Integer",
+            "MPI_Count" => "Integer",
+            "MPI_Fin" => "Integer",
+            "MPI_Offset" => "Integer",
+        ),
+        ccalltype,
+        ccalltype,
+    )
 end
 
 function gen_function(api; large::Bool)

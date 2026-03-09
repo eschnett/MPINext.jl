@@ -171,7 +171,7 @@ function MPI_Accumulate(
     origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
@@ -216,11 +216,11 @@ raw"""
 """
 function MPI_Accumulate_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
     win::MPI_Win,
@@ -305,8 +305,8 @@ raw"""
 - `disp`: [in] displacement
 """
 function MPI_Aint_add(
-    base::MPI_Aint,
-    disp::MPI_Aint,
+    base::Integer,
+    disp::Integer,
 )
     retval = @ccall libmpi.MPI_Aint_add(
         base::MPI_Aint,
@@ -325,8 +325,8 @@ raw"""
 - `addr2`: [in] subtrahend address
 """
 function MPI_Aint_diff(
-    addr1::MPI_Aint,
-    addr2::MPI_Aint,
+    addr1::Integer,
+    addr2::Integer,
 )
     retval = @ccall libmpi.MPI_Aint_diff(
         addr1::MPI_Aint,
@@ -396,10 +396,10 @@ raw"""
 """
 function MPI_Allgather_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
 )
@@ -488,10 +488,10 @@ raw"""
 """
 function MPI_Allgather_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     info::MPI_Info,
@@ -578,7 +578,7 @@ raw"""
 """
 function MPI_Allgatherv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -678,7 +678,7 @@ raw"""
 """
 function MPI_Allgatherv_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -715,7 +715,7 @@ raw"""
 - `baseptr`: [out] pointer to beginning of memory segment allocated
 """
 function MPI_Alloc_mem(
-    size::MPI_Aint,
+    size::Integer,
     info::MPI_Info,
     baseptr::Union{Ptr,Ref,Array},
 )
@@ -783,7 +783,7 @@ raw"""
 function MPI_Allreduce_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -867,7 +867,7 @@ raw"""
 function MPI_Allreduce_init_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -948,10 +948,10 @@ raw"""
 """
 function MPI_Alltoall_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
 )
@@ -1040,10 +1040,10 @@ raw"""
 """
 function MPI_Alltoall_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     info::MPI_Info,
@@ -1640,7 +1640,7 @@ raw"""
 """
 function MPI_Bcast_c(
     buffer::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -1716,7 +1716,7 @@ raw"""
 """
 function MPI_Bcast_init_c(
     buffer::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -1790,7 +1790,7 @@ raw"""
 """
 function MPI_Bsend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -1868,7 +1868,7 @@ raw"""
 """
 function MPI_Bsend_init_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -1918,7 +1918,7 @@ raw"""
 """
 function MPI_Buffer_attach_c(
     buffer::Union{Ptr,Ref,Array},
-    size::MPI_Count,
+    size::Integer,
 )
     retval = @ccall libmpi.MPI_Buffer_attach_c(
         buffer::Ptr{Cvoid},
@@ -2321,7 +2321,7 @@ raw"""
 function MPI_Comm_attach_buffer_c(
     comm::MPI_Comm,
     buffer::Union{Ptr,Ref,Array},
-    size::MPI_Count,
+    size::Integer,
 )
     retval = @ccall libmpi.MPI_Comm_attach_buffer_c(
         comm::MPI_Comm,
@@ -3428,7 +3428,7 @@ function MPI_Compare_and_swap(
     result_addr::Union{Ptr,Ref,Array},
     datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     win::MPI_Win,
 )
     retval = @ccall libmpi.MPI_Compare_and_swap(
@@ -3501,7 +3501,7 @@ function MPI_Datarep_conversion_function(
     datatype::MPI_Datatype,
     count::Integer,
     filebuf::Union{Ptr,Ref,Array},
-    position::MPI_Offset,
+    position::Integer,
     extra_state::Union{Ptr,Ref,Array},
 )
     retval = @ccall libmpi.MPI_Datarep_conversion_function(
@@ -3535,9 +3535,9 @@ raw"""
 function MPI_Datarep_conversion_function_c(
     userbuf::Union{Ptr,Ref,Array},
     datatype::MPI_Datatype,
-    count::MPI_Count,
+    count::Integer,
     filebuf::Union{Ptr,Ref,Array},
-    position::MPI_Offset,
+    position::Integer,
     extra_state::Union{Ptr,Ref,Array},
 )
     retval = @ccall libmpi.MPI_Datarep_conversion_function_c(
@@ -3975,7 +3975,7 @@ raw"""
 function MPI_Exscan_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -4059,7 +4059,7 @@ raw"""
 function MPI_Exscan_init_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -4103,7 +4103,7 @@ function MPI_Fetch_and_op(
     result_addr::Union{Ptr,Ref,Array},
     datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     op::MPI_Op,
     win::MPI_Win,
 )
@@ -4300,7 +4300,7 @@ raw"""
 """
 function MPI_File_get_byte_offset(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     disp::Union{Ref{MPI_Offset},Ptr{MPI_Offset}},
 )
     retval = @ccall libmpi.MPI_File_get_byte_offset(
@@ -4561,7 +4561,7 @@ raw"""
 function MPI_File_iread_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4625,7 +4625,7 @@ raw"""
 function MPI_File_iread_all_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4658,7 +4658,7 @@ raw"""
 """
 function MPI_File_iread_at(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -4694,9 +4694,9 @@ raw"""
 """
 function MPI_File_iread_at_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4730,7 +4730,7 @@ raw"""
 """
 function MPI_File_iread_at_all(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -4766,9 +4766,9 @@ raw"""
 """
 function MPI_File_iread_at_all_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4833,7 +4833,7 @@ raw"""
 function MPI_File_iread_shared_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4897,7 +4897,7 @@ raw"""
 function MPI_File_iwrite_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4961,7 +4961,7 @@ raw"""
 function MPI_File_iwrite_all_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -4994,7 +4994,7 @@ raw"""
 """
 function MPI_File_iwrite_at(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -5030,9 +5030,9 @@ raw"""
 """
 function MPI_File_iwrite_at_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -5066,7 +5066,7 @@ raw"""
 """
 function MPI_File_iwrite_at_all(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -5102,9 +5102,9 @@ raw"""
 """
 function MPI_File_iwrite_at_all_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -5169,7 +5169,7 @@ raw"""
 function MPI_File_iwrite_shared_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
 )
@@ -5226,7 +5226,7 @@ raw"""
 """
 function MPI_File_preallocate(
     fh::MPI_File,
-    size::MPI_Offset,
+    size::Integer,
 )
     retval = @ccall libmpi.MPI_File_preallocate(
         fh::MPI_File,
@@ -5285,7 +5285,7 @@ raw"""
 function MPI_File_read_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -5349,7 +5349,7 @@ raw"""
 function MPI_File_read_all_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -5407,7 +5407,7 @@ raw"""
 function MPI_File_read_all_begin_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_File_read_all_begin_c(
@@ -5462,7 +5462,7 @@ raw"""
 """
 function MPI_File_read_at(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -5498,9 +5498,9 @@ raw"""
 """
 function MPI_File_read_at_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -5534,7 +5534,7 @@ raw"""
 """
 function MPI_File_read_at_all(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -5570,9 +5570,9 @@ raw"""
 """
 function MPI_File_read_at_all_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -5604,7 +5604,7 @@ raw"""
 """
 function MPI_File_read_at_all_begin(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -5636,9 +5636,9 @@ raw"""
 """
 function MPI_File_read_at_all_begin_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_File_read_at_all_begin_c(
@@ -5725,7 +5725,7 @@ raw"""
 function MPI_File_read_ordered_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -5783,7 +5783,7 @@ raw"""
 function MPI_File_read_ordered_begin_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_File_read_ordered_begin_c(
@@ -5869,7 +5869,7 @@ raw"""
 function MPI_File_read_shared_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -5896,7 +5896,7 @@ raw"""
 """
 function MPI_File_seek(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     whence::Integer,
 )
     retval = @ccall libmpi.MPI_File_seek(
@@ -5920,7 +5920,7 @@ raw"""
 """
 function MPI_File_seek_shared(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     whence::Integer,
 )
     retval = @ccall libmpi.MPI_File_seek_shared(
@@ -6002,7 +6002,7 @@ raw"""
 """
 function MPI_File_set_size(
     fh::MPI_File,
-    size::MPI_Offset,
+    size::Integer,
 )
     retval = @ccall libmpi.MPI_File_set_size(
         fh::MPI_File,
@@ -6030,7 +6030,7 @@ raw"""
 """
 function MPI_File_set_view(
     fh::MPI_File,
-    disp::MPI_Offset,
+    disp::Integer,
     etype::MPI_Datatype,
     filetype::MPI_Datatype,
     datarep::Union{Cstring,String,Ptr{Cchar},Ptr{Cuchar}},
@@ -6129,7 +6129,7 @@ raw"""
 function MPI_File_write_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -6193,7 +6193,7 @@ raw"""
 function MPI_File_write_all_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -6251,7 +6251,7 @@ raw"""
 function MPI_File_write_all_begin_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_File_write_all_begin_c(
@@ -6306,7 +6306,7 @@ raw"""
 """
 function MPI_File_write_at(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -6342,9 +6342,9 @@ raw"""
 """
 function MPI_File_write_at_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -6378,7 +6378,7 @@ raw"""
 """
 function MPI_File_write_at_all(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -6414,9 +6414,9 @@ raw"""
 """
 function MPI_File_write_at_all_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -6448,7 +6448,7 @@ raw"""
 """
 function MPI_File_write_at_all_begin(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
     count::Integer,
     datatype::MPI_Datatype,
@@ -6480,9 +6480,9 @@ raw"""
 """
 function MPI_File_write_at_all_begin_c(
     fh::MPI_File,
-    offset::MPI_Offset,
+    offset::Integer,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_File_write_at_all_begin_c(
@@ -6569,7 +6569,7 @@ raw"""
 function MPI_File_write_ordered_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -6627,7 +6627,7 @@ raw"""
 function MPI_File_write_ordered_begin_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_File_write_ordered_begin_c(
@@ -6713,7 +6713,7 @@ raw"""
 function MPI_File_write_shared_c(
     fh::MPI_File,
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
 )
@@ -6834,10 +6834,10 @@ raw"""
 """
 function MPI_Gather_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -6934,10 +6934,10 @@ raw"""
 """
 function MPI_Gather_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -7032,7 +7032,7 @@ raw"""
 """
 function MPI_Gatherv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -7140,7 +7140,7 @@ raw"""
 """
 function MPI_Gatherv_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -7193,7 +7193,7 @@ function MPI_Get(
     origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
@@ -7234,11 +7234,11 @@ raw"""
 """
 function MPI_Get_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
 )
@@ -7292,7 +7292,7 @@ function MPI_Get_accumulate(
     result_count::Integer,
     result_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
@@ -7346,14 +7346,14 @@ raw"""
 """
 function MPI_Get_accumulate_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     result_addr::Union{Ptr,Ref,Array},
-    result_count::MPI_Count,
+    result_count::Integer,
     result_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
     win::MPI_Win,
@@ -8322,10 +8322,10 @@ raw"""
 """
 function MPI_Iallgather_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -8416,7 +8416,7 @@ raw"""
 """
 function MPI_Iallgatherv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -8501,7 +8501,7 @@ raw"""
 function MPI_Iallreduce_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -8586,10 +8586,10 @@ raw"""
 """
 function MPI_Ialltoall_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -8890,7 +8890,7 @@ raw"""
 """
 function MPI_Ibcast_c(
     buffer::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -8968,7 +8968,7 @@ raw"""
 """
 function MPI_Ibsend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -9049,7 +9049,7 @@ raw"""
 function MPI_Iexscan_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -9140,10 +9140,10 @@ raw"""
 """
 function MPI_Igather_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -9242,7 +9242,7 @@ raw"""
 """
 function MPI_Igatherv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -9352,7 +9352,7 @@ raw"""
 """
 function MPI_Imrecv_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     message::Union{Ref{MPI_Message},Ptr{MPI_Message}},
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -9434,10 +9434,10 @@ raw"""
 """
 function MPI_Ineighbor_allgather_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -9528,7 +9528,7 @@ raw"""
 """
 function MPI_Ineighbor_allgatherv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -9618,10 +9618,10 @@ raw"""
 """
 function MPI_Ineighbor_alltoall_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -10428,7 +10428,7 @@ raw"""
 """
 function MPI_Irecv_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     source::Integer,
     tag::Integer,
@@ -10515,7 +10515,7 @@ raw"""
 function MPI_Ireduce_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     root::Integer,
@@ -10677,7 +10677,7 @@ raw"""
 function MPI_Ireduce_scatter_block_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -10756,7 +10756,7 @@ raw"""
 """
 function MPI_Irsend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -10853,7 +10853,7 @@ raw"""
 function MPI_Iscan_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -10944,10 +10944,10 @@ raw"""
 """
 function MPI_Iscatter_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -11050,7 +11050,7 @@ function MPI_Iscatterv_c(
     displs::Vector{MPI_Aint},
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -11132,7 +11132,7 @@ raw"""
 """
 function MPI_Isend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -11242,12 +11242,12 @@ raw"""
 """
 function MPI_Isendrecv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     dest::Integer,
     sendtag::Integer,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     source::Integer,
     recvtag::Integer,
@@ -11344,7 +11344,7 @@ raw"""
 """
 function MPI_Isendrecv_replace_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     sendtag::Integer,
@@ -11428,7 +11428,7 @@ raw"""
 """
 function MPI_Issend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -11660,7 +11660,7 @@ raw"""
 """
 function MPI_Mrecv_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     message::Union{Ref{MPI_Message},Ptr{MPI_Message}},
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
@@ -11736,10 +11736,10 @@ raw"""
 """
 function MPI_Neighbor_allgather_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
 )
@@ -11828,10 +11828,10 @@ raw"""
 """
 function MPI_Neighbor_allgather_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     info::MPI_Info,
@@ -11918,7 +11918,7 @@ raw"""
 """
 function MPI_Neighbor_allgatherv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -12018,7 +12018,7 @@ raw"""
 """
 function MPI_Neighbor_allgatherv_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
     recvcounts::Vector{MPI_Count},
@@ -12104,10 +12104,10 @@ raw"""
 """
 function MPI_Neighbor_alltoall_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
 )
@@ -12196,10 +12196,10 @@ raw"""
 """
 function MPI_Neighbor_alltoall_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     comm::MPI_Comm,
     info::MPI_Info,
@@ -12864,10 +12864,10 @@ raw"""
 """
 function MPI_Pack_c(
     inbuf::Union{Ptr,Ref,Array},
-    incount::MPI_Count,
+    incount::Integer,
     datatype::MPI_Datatype,
     outbuf::Union{Ptr,Ref,Array},
-    outsize::MPI_Count,
+    outsize::Integer,
     position::Union{Ref{MPI_Count},Ptr{MPI_Count}},
     comm::MPI_Comm,
 )
@@ -12908,7 +12908,7 @@ function MPI_Pack_external(
     incount::Integer,
     datatype::MPI_Datatype,
     outbuf::Union{Ptr,Ref,Array},
-    outsize::MPI_Aint,
+    outsize::Integer,
     position::Union{Ref{MPI_Aint},Ptr{MPI_Aint}},
 )
     retval = @ccall libmpi.MPI_Pack_external(
@@ -12945,10 +12945,10 @@ raw"""
 function MPI_Pack_external_c(
     datarep::Union{Ptr{Cstring},Ptr{Ptr{Cchar}},Ptr{Ptr{Cuchar}},Vector{Cstring},Vector{Ptr{Cchar}},Vector{Ptr{Cuchar}}},
     inbuf::Union{Ptr,Ref,Array},
-    incount::MPI_Count,
+    incount::Integer,
     datatype::MPI_Datatype,
     outbuf::Union{Ptr,Ref,Array},
-    outsize::MPI_Count,
+    outsize::Integer,
     position::Union{Ref{MPI_Count},Ptr{MPI_Count}},
 )
     retval = @ccall libmpi.MPI_Pack_external_c(
@@ -13006,7 +13006,7 @@ raw"""
 """
 function MPI_Pack_external_size_c(
     datarep::Union{Ptr{Cstring},Ptr{Ptr{Cchar}},Ptr{Ptr{Cuchar}},Vector{Cstring},Vector{Ptr{Cchar}},Vector{Ptr{Cuchar}}},
-    incount::MPI_Count,
+    incount::Integer,
     datatype::MPI_Datatype,
     size::Union{Ref{MPI_Count},Ptr{MPI_Count}},
 )
@@ -13061,7 +13061,7 @@ raw"""
 - `size`: [out] upper bound on size of packed message, in bytes
 """
 function MPI_Pack_size_c(
-    incount::MPI_Count,
+    incount::Integer,
     datatype::MPI_Datatype,
     comm::MPI_Comm,
     size::Union{Ref{MPI_Count},Ptr{MPI_Count}},
@@ -13197,7 +13197,7 @@ raw"""
 function MPI_Precv_init(
     buf::Union{Ptr,Ref,Array},
     partitions::Integer,
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     source::Integer,
     tag::Integer,
@@ -13273,7 +13273,7 @@ raw"""
 function MPI_Psend_init(
     buf::Union{Ptr,Ref,Array},
     partitions::Integer,
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -13345,7 +13345,7 @@ function MPI_Put(
     origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
@@ -13386,11 +13386,11 @@ raw"""
 """
 function MPI_Put_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
 )
@@ -13453,7 +13453,7 @@ function MPI_Raccumulate(
     origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
@@ -13502,11 +13502,11 @@ raw"""
 """
 function MPI_Raccumulate_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
     win::MPI_Win,
@@ -13588,7 +13588,7 @@ raw"""
 """
 function MPI_Recv_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     source::Integer,
     tag::Integer,
@@ -13668,7 +13668,7 @@ raw"""
 """
 function MPI_Recv_init_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     source::Integer,
     tag::Integer,
@@ -13749,7 +13749,7 @@ raw"""
 function MPI_Reduce_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     root::Integer,
@@ -13841,7 +13841,7 @@ raw"""
 function MPI_Reduce_init_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     root::Integer,
@@ -13913,7 +13913,7 @@ raw"""
 function MPI_Reduce_local_c(
     inbuf::Union{Ptr,Ref,Array},
     inoutbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
 )
@@ -14055,7 +14055,7 @@ raw"""
 function MPI_Reduce_scatter_block_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -14139,7 +14139,7 @@ raw"""
 function MPI_Reduce_scatter_block_init_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -14583,7 +14583,7 @@ function MPI_Rget(
     origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
@@ -14628,11 +14628,11 @@ raw"""
 """
 function MPI_Rget_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -14690,7 +14690,7 @@ function MPI_Rget_accumulate(
     result_count::Integer,
     result_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
@@ -14748,14 +14748,14 @@ raw"""
 """
 function MPI_Rget_accumulate_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     result_addr::Union{Ptr,Ref,Array},
-    result_count::MPI_Count,
+    result_count::Integer,
     result_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     op::MPI_Op,
     win::MPI_Win,
@@ -14807,7 +14807,7 @@ function MPI_Rput(
     origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
+    target_disp::Integer,
     target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
@@ -14852,11 +14852,11 @@ raw"""
 """
 function MPI_Rput_c(
     origin_addr::Union{Ptr,Ref,Array},
-    origin_count::MPI_Count,
+    origin_count::Integer,
     origin_datatype::MPI_Datatype,
     target_rank::Integer,
-    target_disp::MPI_Aint,
-    target_count::MPI_Count,
+    target_disp::Integer,
+    target_count::Integer,
     target_datatype::MPI_Datatype,
     win::MPI_Win,
     request::Union{Ref{MPI_Request},Ptr{MPI_Request}},
@@ -14930,7 +14930,7 @@ raw"""
 """
 function MPI_Rsend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -15008,7 +15008,7 @@ raw"""
 """
 function MPI_Rsend_init_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -15083,7 +15083,7 @@ raw"""
 function MPI_Scan_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -15167,7 +15167,7 @@ raw"""
 function MPI_Scan_init_c(
     sendbuf::Union{Ptr,Ref,Array},
     recvbuf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     op::MPI_Op,
     comm::MPI_Comm,
@@ -15254,10 +15254,10 @@ raw"""
 """
 function MPI_Scatter_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -15354,10 +15354,10 @@ raw"""
 """
 function MPI_Scatter_init_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -15456,7 +15456,7 @@ function MPI_Scatterv_c(
     displs::Vector{MPI_Aint},
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -15564,7 +15564,7 @@ function MPI_Scatterv_init_c(
     displs::Vector{MPI_Aint},
     sendtype::MPI_Datatype,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     root::Integer,
     comm::MPI_Comm,
@@ -15642,7 +15642,7 @@ raw"""
 """
 function MPI_Send_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -15720,7 +15720,7 @@ raw"""
 """
 function MPI_Send_init_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -15830,12 +15830,12 @@ raw"""
 """
 function MPI_Sendrecv_c(
     sendbuf::Union{Ptr,Ref,Array},
-    sendcount::MPI_Count,
+    sendcount::Integer,
     sendtype::MPI_Datatype,
     dest::Integer,
     sendtag::Integer,
     recvbuf::Union{Ptr,Ref,Array},
-    recvcount::MPI_Count,
+    recvcount::Integer,
     recvtype::MPI_Datatype,
     source::Integer,
     recvtag::Integer,
@@ -15932,7 +15932,7 @@ raw"""
 """
 function MPI_Sendrecv_replace_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     sendtag::Integer,
@@ -15993,7 +15993,7 @@ raw"""
 function MPI_Session_attach_buffer_c(
     session::MPI_Session,
     buffer::Union{Ptr,Ref,Array},
-    size::MPI_Count,
+    size::Integer,
 )
     retval = @ccall libmpi.MPI_Session_attach_buffer_c(
         session::MPI_Session,
@@ -16430,7 +16430,7 @@ raw"""
 """
 function MPI_Ssend_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -16508,7 +16508,7 @@ raw"""
 """
 function MPI_Ssend_init_c(
     buf::Union{Ptr,Ref,Array},
-    count::MPI_Count,
+    count::Integer,
     datatype::MPI_Datatype,
     dest::Integer,
     tag::Integer,
@@ -16737,7 +16737,7 @@ raw"""
 function MPI_Status_set_elements_c(
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
     datatype::MPI_Datatype,
-    count::MPI_Count,
+    count::Integer,
 )
     retval = @ccall libmpi.MPI_Status_set_elements_c(
         status::Ref{MPI_Status},
@@ -16761,7 +16761,7 @@ raw"""
 function MPI_Status_set_elements_x(
     status::Union{Ref{MPI_Status},Ptr{MPI_Status}},
     datatype::MPI_Datatype,
-    count::MPI_Count,
+    count::Integer,
 )
     retval = @ccall libmpi.MPI_Status_set_elements_x(
         status::Ref{MPI_Status},
@@ -17387,7 +17387,7 @@ raw"""
 - `user_data`: [in] 
 """
 function MPI_T_event_dropped_cb_function(
-    count::MPI_Count,
+    count::Integer,
     event_registration::MPI_T_event_registration,
     source_index::Integer,
     cb_safety::Integer,
@@ -18323,7 +18323,7 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_contiguous_c(
-    count::MPI_Count,
+    count::Integer,
     oldtype::MPI_Datatype,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
 )
@@ -18591,7 +18591,7 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_create_hindexed_c(
-    count::MPI_Count,
+    count::Integer,
     array_of_blocklengths::Vector{MPI_Count},
     array_of_displacements::Vector{MPI_Count},
     oldtype::MPI_Datatype,
@@ -18655,8 +18655,8 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_create_hindexed_block_c(
-    count::MPI_Count,
-    blocklength::MPI_Count,
+    count::Integer,
+    blocklength::Integer,
     array_of_displacements::Vector{MPI_Count},
     oldtype::MPI_Datatype,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
@@ -18689,7 +18689,7 @@ raw"""
 function MPI_Type_create_hvector(
     count::Integer,
     blocklength::Integer,
-    stride::MPI_Aint,
+    stride::Integer,
     oldtype::MPI_Datatype,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
 )
@@ -18719,9 +18719,9 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_create_hvector_c(
-    count::MPI_Count,
-    blocklength::MPI_Count,
-    stride::MPI_Count,
+    count::Integer,
+    blocklength::Integer,
+    stride::Integer,
     oldtype::MPI_Datatype,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
 )
@@ -18783,8 +18783,8 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_create_indexed_block_c(
-    count::MPI_Count,
-    blocklength::MPI_Count,
+    count::Integer,
+    blocklength::Integer,
     array_of_displacements::Vector{MPI_Count},
     oldtype::MPI_Datatype,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
@@ -18842,8 +18842,8 @@ raw"""
 """
 function MPI_Type_create_resized(
     oldtype::MPI_Datatype,
-    lb::MPI_Aint,
-    extent::MPI_Aint,
+    lb::Integer,
+    extent::Integer,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
 )
     retval = @ccall libmpi.MPI_Type_create_resized(
@@ -18870,8 +18870,8 @@ raw"""
 """
 function MPI_Type_create_resized_c(
     oldtype::MPI_Datatype,
-    lb::MPI_Count,
-    extent::MPI_Count,
+    lb::Integer,
+    extent::Integer,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
 )
     retval = @ccall libmpi.MPI_Type_create_resized_c(
@@ -18931,7 +18931,7 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_create_struct_c(
-    count::MPI_Count,
+    count::Integer,
     array_of_blocklengths::Vector{MPI_Count},
     array_of_displacements::Vector{MPI_Count},
     array_of_types::Vector{MPI_Datatype},
@@ -19252,10 +19252,10 @@ raw"""
 """
 function MPI_Type_get_contents_c(
     datatype::MPI_Datatype,
-    max_integers::MPI_Count,
-    max_addresses::MPI_Count,
-    max_large_counts::MPI_Count,
-    max_datatypes::MPI_Count,
+    max_integers::Integer,
+    max_addresses::Integer,
+    max_large_counts::Integer,
+    max_datatypes::Integer,
     array_of_integers::Vector{Cint},
     array_of_addresses::Vector{MPI_Aint},
     array_of_large_counts::Vector{MPI_Count},
@@ -19583,7 +19583,7 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_indexed_c(
-    count::MPI_Count,
+    count::Integer,
     array_of_blocklengths::Vector{MPI_Count},
     array_of_displacements::Vector{MPI_Count},
     oldtype::MPI_Datatype,
@@ -19791,9 +19791,9 @@ raw"""
 - `newtype`: [out] new datatype
 """
 function MPI_Type_vector_c(
-    count::MPI_Count,
-    blocklength::MPI_Count,
-    stride::MPI_Count,
+    count::Integer,
+    blocklength::Integer,
+    stride::Integer,
     oldtype::MPI_Datatype,
     newtype::Union{Ref{MPI_Datatype},Ptr{MPI_Datatype}},
 )
@@ -19868,10 +19868,10 @@ raw"""
 """
 function MPI_Unpack_c(
     inbuf::Union{Ptr,Ref,Array},
-    insize::MPI_Count,
+    insize::Integer,
     position::Union{Ref{MPI_Count},Ptr{MPI_Count}},
     outbuf::Union{Ptr,Ref,Array},
-    outcount::MPI_Count,
+    outcount::Integer,
     datatype::MPI_Datatype,
     comm::MPI_Comm,
 )
@@ -19909,7 +19909,7 @@ raw"""
 function MPI_Unpack_external(
     datarep::Union{Ptr{Cstring},Ptr{Ptr{Cchar}},Ptr{Ptr{Cuchar}},Vector{Cstring},Vector{Ptr{Cchar}},Vector{Ptr{Cuchar}}},
     inbuf::Union{Ptr,Ref,Array},
-    insize::MPI_Aint,
+    insize::Integer,
     position::Union{Ref{MPI_Aint},Ptr{MPI_Aint}},
     outbuf::Union{Ptr,Ref,Array},
     outcount::Integer,
@@ -19949,10 +19949,10 @@ raw"""
 function MPI_Unpack_external_c(
     datarep::Union{Ptr{Cstring},Ptr{Ptr{Cchar}},Ptr{Ptr{Cuchar}},Vector{Cstring},Vector{Ptr{Cchar}},Vector{Ptr{Cuchar}}},
     inbuf::Union{Ptr,Ref,Array},
-    insize::MPI_Count,
+    insize::Integer,
     position::Union{Ref{MPI_Count},Ptr{MPI_Count}},
     outbuf::Union{Ptr,Ref,Array},
-    outcount::MPI_Count,
+    outcount::Integer,
     datatype::MPI_Datatype,
 )
     retval = @ccall libmpi.MPI_Unpack_external_c(
@@ -20169,7 +20169,7 @@ raw"""
 - `win`: [out] 
 """
 function MPI_Win_allocate(
-    size::MPI_Aint,
+    size::Integer,
     disp_unit::Integer,
     info::MPI_Info,
     comm::MPI_Comm,
@@ -20205,8 +20205,8 @@ raw"""
 - `win`: [out] 
 """
 function MPI_Win_allocate_c(
-    size::MPI_Aint,
-    disp_unit::MPI_Aint,
+    size::Integer,
+    disp_unit::Integer,
     info::MPI_Info,
     comm::MPI_Comm,
     baseptr::Union{Ptr,Ref,Array},
@@ -20241,7 +20241,7 @@ raw"""
 - `win`: [out] 
 """
 function MPI_Win_allocate_shared(
-    size::MPI_Aint,
+    size::Integer,
     disp_unit::Integer,
     info::MPI_Info,
     comm::MPI_Comm,
@@ -20277,8 +20277,8 @@ raw"""
 - `win`: [out] 
 """
 function MPI_Win_allocate_shared_c(
-    size::MPI_Aint,
-    disp_unit::MPI_Aint,
+    size::Integer,
+    disp_unit::Integer,
     info::MPI_Info,
     comm::MPI_Comm,
     baseptr::Union{Ptr,Ref,Array},
@@ -20309,7 +20309,7 @@ raw"""
 function MPI_Win_attach(
     win::MPI_Win,
     base::Union{Ptr,Ref,Array},
-    size::MPI_Aint,
+    size::Integer,
 )
     retval = @ccall libmpi.MPI_Win_attach(
         win::MPI_Win,
@@ -20426,7 +20426,7 @@ raw"""
 """
 function MPI_Win_create(
     base::Union{Ptr,Ref,Array},
-    size::MPI_Aint,
+    size::Integer,
     disp_unit::Integer,
     info::MPI_Info,
     comm::MPI_Comm,
@@ -20462,8 +20462,8 @@ raw"""
 """
 function MPI_Win_create_c(
     base::Union{Ptr,Ref,Array},
-    size::MPI_Aint,
-    disp_unit::MPI_Aint,
+    size::Integer,
+    disp_unit::Integer,
     info::MPI_Info,
     comm::MPI_Comm,
     win::Union{Ref{MPI_Win},Ptr{MPI_Win}},
