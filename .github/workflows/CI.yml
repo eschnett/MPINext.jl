@@ -60,6 +60,7 @@ jobs:
               end
           '
       - uses: julia-actions/julia-buildpkg@v1
+      # The `julia-runtest` action always runs MPICH. We need to find out how to properly switch to OpenMPI.
       # - uses: julia-actions/julia-runtest@v1
       - name: "Run single-process tests"
         run: |
