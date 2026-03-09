@@ -5,6 +5,21 @@ using Test
 
 const M = MPINext
 
+################################################################################
+
+# A convenient helper function to initialize output buffers
+poison(::Type{T}) where {T<:Integer} = typemax(T)
+poison(::Type{T}) where {T<:AbstractFloat} = T(NaN)
+ispoison(x::Integer) = x == typemax(x)
+ispoison(x::AbstractFloat) = isnan(x)
+
+ispoison(ref::Ref) = ispoison(ref[])
+ispoison(array::Array) = all(ispoison, array)
+poison!(ref::Ref{T}) where {T} = (ref[] = poison(T))
+poison!(array::Array{T}) where {T} = fill!(array, poison(T))
+
+################################################################################
+
 # Which rank are we? Get this straight from the MPI implementation, MPI has not been initialized yet.
 const rank_from_env, size_from_env = M.get_rank_size_from_env()
 
@@ -24,7 +39,9 @@ println("+++ Testing MPINext.jl")
 
 println("+++ MPI library version:")
 println(get_library_version())
-println("+++ MPI version ", get_version())
+println("+++ MPI standard version ", get_version())
+
+println("+++ This is MPI process $rank_from_env of $size_from_env")
 
 ################################################################################
 
@@ -36,37 +53,35 @@ println("+++ MPI version ", get_version())
     @test !finalized()
 end
 
-const rank = comm_rank(COMM_WORLD)
-const size = comm_size(COMM_WORLD)
+const comm = COMM_WORLD
+const rank = comm_rank(comm)
+const size = comm_size(comm)
 
-@testset "Check MPI startup" begin
+@testset "MPI environment" begin
     @test rank == rank_from_env
     @test size == size_from_env
 end
 
-println("+++ This is MPI process $rank of $size")
-println("+++ This is MPI processor ", get_processor_name())
-
-barrier(COMM_WORLD)
+barrier(comm)
 @testset "Datatype" begin
     DATATYPE_NULL::Datatype
-    for T in M.predefined_mpi_types_list
-        raw_datatype = convert(M.MPI_Datatype, T)
-        raw_datatype::M.MPI_Datatype
-        T1 = convert(Type, raw_datatype)
+    for T in M.predefined_mpi_types
+        raw_datatype = M.mpi_datatype(T)
+        raw_datatype::Cint
+        T1 = julia_type(raw_datatype)
         @test T1 == T
         datatype = Datatype(T)
         datatype::Datatype
-        T2 = convert(Type, datatype)
+        T2 = julia_type(datatype)
         @test T2 == T
     end
 end
 
-barrier(COMM_WORLD)
+barrier(comm)
 @testset "Comm" begin
-    COMM_NULL::Comm
-    COMM_SELF::Comm
-    COMM_WORLD::Comm
+    @test COMM_NULL isa Comm
+    @test COMM_SELF isa Comm
+    @test COMM_WORLD isa Comm
 
     @test comm_rank(COMM_SELF) == 0
     @test comm_size(COMM_SELF) == 1
@@ -87,16 +102,31 @@ vecband!(invec::Vector, inoutvec::Vector) = (inoutvec .&= invec)
 vecbor!(invec::Vector, inoutvec::Vector) = (inoutvec .|= invec)
 vecbxor!(invec::Vector, inoutvec::Vector) = (inoutvec .⊻= invec)
 
-barrier(COMM_WORLD)
+barrier(comm)
 @testset "Op" begin
-    OP_NULL::Op
-    Op(+)::Op
-    Op(min)::Op
-    Op(max)::Op
-    Op(*)::Op
-    Op(&)::Op
-    Op(|)::Op
-    Op(⊻)::Op
+    @test OP_NULL isa Op
+    @test OP_SUM isa Op
+    @test OP_MIN isa Op
+    @test OP_MAX isa Op
+    @test OP_PROD isa Op
+    @test OP_BAND isa Op
+    @test OP_BOR isa Op
+    @test OP_BXOR isa Op
+    @test OP_LAND isa Op
+    @test OP_LOR isa Op
+    @test OP_LXOR isa Op
+    @test OP_MINLOC isa Op
+    @test OP_MAXLOC isa Op
+    @test OP_REPLACE isa Op
+    @test OP_NO_OP isa Op
+
+    @test Op(+) isa Op
+    @test Op(min) isa Op
+    @test Op(max) isa Op
+    @test Op(*) isa Op
+    @test Op(&) isa Op
+    @test Op(|) isa Op
+    @test Op(⊻) isa Op
 
     mysum = op_create(vecadd!, true)::Op
     mymin = op_create(vecmin!, true)::Op
@@ -108,6 +138,7 @@ barrier(COMM_WORLD)
     for i in 1:10
         GC.gc(true)
     end
+
     op_free(mysum)
     op_free(mymin)
     op_free(mymax)
@@ -120,115 +151,181 @@ barrier(COMM_WORLD)
     end
 end
 
-barrier(COMM_WORLD)
+barrier(comm)
 @testset "Point-to-point" begin
     source = mod(rank - 1, size)
     dest = mod(rank + 1, size)
     tag = 12
 
-    for T in M.predefined_mpi_types_list
-        msg(proc) = T(2*proc+1)
+    for T in M.predefined_mpi_types
+        function test_send_and_recv(sendbuf, wantbuf, recvbuf)
+            if size > 1
+                # With status
+                if rank != size - 1
+                    send(sendbuf, dest, tag, comm)
+                end
+                if rank != 0
+                    status = Ref{Status}()
+                    poison!(recvbuf)
+                    recv!(recvbuf, source, tag, comm, status)
+                    @test status[].MPI_SOURCE == source
+                    @test status[].MPI_TAG == tag
+                    @test all(recvbuf .== wantbuf)
+                end
 
-        x = Ref(msg(rank))
-        y = Ref{T}()
-        status = Ref{Status}()
+                # Without status
+                if rank != size - 1
+                    send(sendbuf, dest, tag, comm)
+                end
+                if rank != 0
+                    poison!(recvbuf)
+                    recv!(recvbuf, source, tag, comm)
+                    @test all(recvbuf .== wantbuf)
+                end
 
-        if size > 1
-            if rank != size - 1
-                send(x, dest, tag, COMM_WORLD)
-            end
-            if rank != 0
-                recv!(y, source, tag, COMM_WORLD, status)
-                @test status[].MPI_SOURCE == source
-                @test status[].MPI_TAG == tag
-                @test y[] == msg(source)
-            end
+                # Low-level pointer API
+                if !(sendbuf isa Ref)
+                    if rank != size - 1
+                        send(pointer(sendbuf), length(sendbuf), Datatype(T), dest, tag, comm)
+                    end
+                    if rank != 0
+                        status = Ref{Status}()
+                        poison!(recvbuf)
+                        recv!(pointer(recvbuf), length(recvbuf), Datatype(T), source, tag, comm, status)
+                        @test status[].MPI_SOURCE == source
+                        @test status[].MPI_TAG == tag
+                        @test all(recvbuf .== wantbuf)
+                    end
+                end
 
-            if rank != size - 1
-                send(x, dest, tag, COMM_WORLD)
-            end
-            if rank != 0
-                recv!(y, source, tag, COMM_WORLD)
-                @test y[] == msg(source)
-            end
-
-            if rank != size - 1
-                send(x, dest, tag, COMM_WORLD)
-            end
-            if rank != 0
-                z = recv(T, source, tag, COMM_WORLD)
-                z::Vector{T}
-                @test length(z) == 1
-                @test z == [msg(source)]
+                # Without receive buffer
+                if rank != size - 1
+                    send(sendbuf, dest, tag, comm)
+                end
+                if rank != 0
+                    result = recv(T, source, tag, comm)
+                    @test result isa Vector{T}
+                    @test length(result) == length(recvbuf)
+                    @test all(recvbuf .== wantbuf)
+                end
             end
         end
 
-        sendrecv!(x, dest, tag, y, source, tag, COMM_WORLD, status)
-        @test status[].MPI_SOURCE == source
-        @test status[].MPI_TAG == tag
-        @test y[] == msg(source)
+        function test_isend_and_irecv(sendbuf, wantbuf, recvbuf)
+            # With status
+            sendrequest = isend(sendbuf, dest, tag, comm)
+            poison!(recvbuf)
+            recvrequest = irecv!(recvbuf, source, tag, comm)
+            status = Ref{Status}()
+            wait(recvrequest, status)
+            @test status[].MPI_SOURCE == source
+            @test status[].MPI_TAG == tag
+            @test all(recvbuf .== wantbuf)
+            wait(sendrequest)
 
-        z = sendrecv(x[], dest, tag, source, tag, COMM_WORLD, status)
-        @test status[].MPI_SOURCE == source
-        @test status[].MPI_TAG == tag
-        @test z == msg(source)
+            # Without status
+            sendrequest = isend(sendbuf, dest, tag, comm)
+            poison!(recvbuf)
+            recvrequest = irecv!(recvbuf, source, tag, comm)
+            wait(recvrequest)
+            @test all(recvbuf .== wantbuf)
+            wait(sendrequest)
 
-        for D in 0:4
-            sz = ntuple(d -> d+2, D)
-            x = fill(msg(rank), sz)
-            y = similar(x)
-
-            if size > 1
-                if rank != size - 1
-                    send(x, dest, tag, COMM_WORLD)
-                end
-                if rank != 0
-                    recv!(y, source, tag, COMM_WORLD, status)
-                    @test status[].MPI_SOURCE == source
-                    @test status[].MPI_TAG == tag
-                    @test all(==(msg(source)), y)
-                end
-
-                if rank != size - 1
-                    send(x, dest, tag, COMM_WORLD)
-                end
-                if rank != 0
-                    recv!(y, source, tag, COMM_WORLD)
-                    @test all(==(msg(source)), y)
-                end
-
-                if rank != size - 1
-                    send(x, dest, tag, COMM_WORLD)
-                end
-                if rank != 0
-                    z = recv(T, source, tag, COMM_WORLD)
-                    z::Vector{T}
-                    @test length(z) == length(x)
-                    @test all(==(msg(source)), z)
-                end
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                sendrequeest = isend(pointer(sendbuf), length(sendbuf), Datatype(T), dest, tag, comm)
+                poison!(recvbuf)
+                recvrequest = irecv!(pointer(recvbuf), length(recvbuf), Datatype(T), source, tag, comm)
+                status = Ref{Status}()
+                wait(recvrequest, status)
+                @test status[].MPI_SOURCE == source
+                @test status[].MPI_TAG == tag
+                @test all(recvbuf .== wantbuf)
+                wait(sendrequest)
             end
 
-            sendrecv!(x, dest, tag, y, source, tag, COMM_WORLD, status)
-            @test status[].MPI_SOURCE == source
-            @test status[].MPI_TAG == tag
-            @test all(==(msg(source)), y)
+            # Without receive buffer
+            sendrequest = isend(sendbuf, dest, tag, comm)
+            result = recv(T, source, tag, comm)
+            @test result isa Vector{T}
+            @test length(result) == length(recvbuf)
+            @test all(recvbuf .== wantbuf)
+            buf = wait(sendrequest)
+            @test buf === sendbuf
+        end
 
-            sendrecv!(pointer(x), length(x), dest, tag, pointer(y), length(y), source, tag, COMM_WORLD, status)
+        function test_sendrecv(sendbuf, wantbuf, recvbuf)
+            # With status
+            status = Ref{Status}()
+            poison!(recvbuf)
+            sendrecv!(sendbuf, dest, tag, recvbuf, source, tag, comm, status)
             @test status[].MPI_SOURCE == source
             @test status[].MPI_TAG == tag
-            @test all(==(msg(source)), y)
+            @test all(recvbuf .== wantbuf)
 
-            z = sendrecv(x, dest, tag, source, tag, COMM_WORLD, status)
-            @test status[].MPI_SOURCE == source
-            @test status[].MPI_TAG == tag
-            @test all(==(msg(source)), z)
+            # Without status
+            poison!(recvbuf)
+            sendrecv!(sendbuf, dest, tag, recvbuf, source, tag, comm)
+            @test all(recvbuf .== wantbuf)
+
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                status = Ref{Status}()
+                poison!(recvbuf)
+                sendrecv!(
+                    pointer(sendbuf),
+                    length(sendbuf),
+                    Datatype(T),
+                    dest,
+                    tag,
+                    pointer(recvbuf),
+                    length(recvbuf),
+                    Datatype(T),
+                    source,
+                    tag,
+                    comm,
+                    status,
+                )
+                @test status[].MPI_SOURCE == source
+                @test status[].MPI_TAG == tag
+                @test all(recvbuf .== wantbuf)
+            end
+
+            # Without receive buffer
+            result = sendrecv(sendbuf, dest, tag, T, source, tag, comm)
+            @test result isa Vector{T}
+            @test length(result) == length(recvbuf)
+            @test all(recvbuf .== wantbuf)
+        end
+
+        msg(proc) = T(2*proc+1)
+
+        # Scalar
+        sendbuf = Ref(msg(rank))
+        wantbuf = Ref(msg(source))
+        recvbuf = Ref{T}()
+
+        test_send_and_recv(sendbuf, wantbuf, recvbuf)
+        test_isend_and_irecv(sendbuf, wantbuf, recvbuf)
+        test_sendrecv(sendbuf, wantbuf, recvbuf)
+
+        # Arrays
+        for D in 0:4
+            sz = ntuple(d -> d+2, D)
+            sendbuf = fill(msg(rank), sz)
+            wantbuf = fill(msg(source), sz)
+            recvbuf = similar(wantbuf)
+
+            test_send_and_recv(sendbuf, wantbuf, recvbuf)
+            test_isend_and_irecv(sendbuf, wantbuf, recvbuf)
+            test_sendrecv(sendbuf, wantbuf, recvbuf)
         end
     end
 end
 
-barrier(COMM_WORLD)
+barrier(comm)
 @testset "Collective" begin
-    root = 0
+    root = size ÷ 2
 
     mysum = op_create(vecadd!, true)
     mymin = op_create(vecmin!, true)
@@ -238,87 +335,156 @@ barrier(COMM_WORLD)
     mybor = op_create(vecbor!, true)::Op
     mybxor = op_create(vecbxor!, true)::Op
 
-    for T in M.predefined_mpi_types_list
-        operators = [
-            (Op(+), sum),
-            (Op(min), minimum),
-            (Op(max), maximum),
-            (Op(*), prod),
-            (mysum, sum),
-            (mymin, minimum),
-            (mymax, maximum),
-            (myprod, prod),
-        ]
+    for T in M.predefined_mpi_types
+        function test_reduce(sendbuf, wantbuf, recvbuf, op)
+            # Regular API
+            poison!(recvbuf)
+            reduce!(sendbuf, recvbuf, op, root, comm)
+            if rank == root
+                @test all(recvbuf .== wantbuf)
+            else
+                @test ispoison(recvbuf)
+            end
 
-        if T <: Integer
-            append!(
-                operators,
-                [
-                    (Op(&), (array -> reduce(&, array))),
-                    (Op(|), (array -> reduce(|, array))),
-                    (Op(⊻), (array -> reduce(⊻, array))),
-                    (myband, (array -> reduce(&, array))),
-                    (mybor, (array -> reduce(|, array))),
-                    (mybxor, (array -> reduce(⊻, array))),
-                ],
-            )
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                poison!(recvbuf)
+                reduce!(pointer(sendbuf), pointer(recvbuf), length(sendbuf), Datatype(T), op, root, comm)
+                if rank == root
+                    @test all(recvbuf .== wantbuf)
+                else
+                    @test ispoison(recvbuf)
+                end
+            end
+
+            # Without receive buffer
+            result = reduce(sendbuf, op, root, comm)
+            if rank == root
+                @test eltype(result) == T
+                @test length(result) == length(wantbuf)
+                @test all(result .== wantbuf)
+            else
+                @test result === nothing
+            end
+
+            poison!(recvbuf)
+            allreduce!(sendbuf, recvbuf, op, comm)
+            @test all(recvbuf .== wantbuf)
+
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                poison!(recvbuf)
+                allreduce!(pointer(sendbuf), pointer(recvbuf), length(sendbuf), Datatype(T), op, comm)
+                @test all(recvbuf .== wantbuf)
+            end
+
+            # Without receive buffer
+            result = allreduce(sendbuf, op, comm)
+            @test eltype(result) == T
+            @test length(result) == length(wantbuf)
+            @test all(result .== wantbuf)
         end
 
-        for (op, julia_op) in operators
-            input(proc) = T(2*proc+1)
-            output = julia_op(input(proc) for proc in 0:(size - 1))
-
-            x = Ref(input(rank))
-            y = Ref{T}()
-
-            reduce!(x, y, op, root, COMM_WORLD)
+        function test_gather(sendbuf, wantbuf, recvbuf)
+            # Regular API
+            poison!(recvbuf)
+            gather!(sendbuf, recvbuf, root, comm)
             if rank == root
-                @test y[] == output
-            end
-
-            z = reduce(x[], op, root, COMM_WORLD)
-            if rank == root
-                @test z == output
+                @test all(recvbuf .== wantbuf)
             else
-                @test z === nothing
+                @test ispoison(recvbuf)
             end
 
-            allreduce!(x, y, op, COMM_WORLD)
-            @test y[] == output
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                poison!(recvbuf)
+                # Yes, `length(sendbuf)` twice
+                gather!(pointer(sendbuf), length(sendbuf), Datatype(T), pointer(recvbuf), length(sendbuf), Datatype(T), root, comm)
+                if rank == root
+                    @test all(recvbuf .== wantbuf)
+                else
+                    @test ispoison(recvbuf)
+                end
+            end
 
-            z = allreduce(x[], op, COMM_WORLD)
-            @test z == output
+            # Without receive buffer
+            result = gather(sendbuf, root, comm)
+            if rank == root
+                @test eltype(result) == T
+                @test length(result) == length(wantbuf)
+                @test all(result .== wantbuf)
+            else
+                @test result === nothing
+            end
 
+            poison!(recvbuf)
+            allgather!(sendbuf, recvbuf, comm)
+            @test all(recvbuf .== wantbuf)
+
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                poison!(recvbuf)
+                # Yes, `length(sendbuf)` twice
+                allgather!(pointer(sendbuf), length(sendbuf), Datatype(T), pointer(recvbuf), length(sendbuf), Datatype(T), comm)
+                @test all(recvbuf .== wantbuf)
+            end
+
+            # Without receive buffer
+            result = allgather(sendbuf, comm)
+            @test eltype(result) == T
+            @test length(result) == length(wantbuf)
+            @test all(result .== wantbuf)
+        end
+
+        operators = [(Op(+), +), (Op(min), min), (Op(max), max), (Op(*), *), (mysum, +), (mymin, min), (mymax, max), (myprod, *)]
+
+        if T <: Integer
+            append!(operators, [(Op(&), &), (Op(|), |), (Op(⊻), ⊻), (myband, &), (mybor, |), (mybxor, ⊻)])
+        end
+
+        input(proc) = T(2*proc+1)
+
+        for (op, julia_op) in operators
+            output = reduce(julia_op, input(proc) for proc in 0:(size - 1))
+
+            # Scalars
+            sendbuf = Ref(input(rank))
+            wantbuf = Ref(output)
+            recvbuf = Ref{T}()
+
+            test_reduce(sendbuf, wantbuf, recvbuf, op)
+
+            # Arrays
             for D in 0:4
                 sz = ntuple(d -> d+2, D)
-                x = fill(input(rank), sz)
-                y = rank == root ? similar(x) : T[]
+                sendbuf = fill(input(rank), sz)
+                wantbuf = fill(output, sz)
+                recvbuf = similar(wantbuf)
 
-                reduce!(x, y, op, root, COMM_WORLD)
-                if rank == root
-                    @test all(==(output), y)
-                end
-
-                z = reduce(x, op, root, COMM_WORLD)
-                if rank == root
-                    @test all(==(output), z)
-                else
-                    @test z === nothing
-                end
-
-                y = similar(x)
-
-                allreduce!(x, y, op, COMM_WORLD)
-                @test all(==(output), y)
-
-                z = allreduce(x, op, COMM_WORLD)
-                @test all(==(output), z)
+                test_reduce(sendbuf, wantbuf, recvbuf, op)
             end
+        end
+
+        # Scalars
+        sendbuf = Ref(input(rank))
+        wantbuf = [input(proc) for proc in 0:(size - 1)]
+        recvbuf = similar(wantbuf)
+
+        test_gather(sendbuf, wantbuf, recvbuf)
+
+        # Arrays
+        for D in 0:4
+            sz = ntuple(d -> d+2, D)
+            sendbuf = fill(input(rank), sz)
+            wantbuf = stack(fill(input(proc), sz) for proc in 0:(size - 1))
+            recvbuf = similar(wantbuf)
+
+            test_gather(sendbuf, wantbuf, recvbuf)
         end
     end
 end
 
-barrier(COMM_WORLD)
+barrier(comm)
 @testset "MPI_Finalize" begin
     @test initialized()
     @test !finalized()

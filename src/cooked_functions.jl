@@ -64,6 +64,75 @@ function get_count(status::Ref{Status}, datatype::Datatype)
     end
 end
 
+export iprobe
+function iprobe(source::Integer, tag::Integer, comm::Comm)
+    c_request = Ref{MPI_Request}()
+    GC.@preserve comm begin
+        ierr = MPI_Iprobe(source, tag, comm.val, c_request)
+    end
+    chkerr(ierr)
+    request = Request(c_request[])
+    return request
+end
+
+export irecv!
+function irecv!(buf::Buffer, count::Integer, datatype::Datatype, source::Integer, tag::Integer, comm::Comm)
+    c_request = Ref{MPI_Request}()
+    GC.@preserve buf datatype comm begin
+        ierr = MPI_Irecv(buffer_ptr(buf), count, datatype.val, source, tag, comm.val, c_request)
+    end
+    chkerr(ierr)
+    request = Request(c_request[])
+    request.data = buf
+    finalizer(request) do request
+        request.val == MPI_REQUEST_NULL && return nothing
+        finalized() && return nothing
+        request_free(request)
+    end
+    return request
+end
+function irecv!(;
+    buf::Buffer,
+    count::Integer=buffer_count(buf),
+    datatype::Datatype=buffer_datatype(buf),
+    source::Integer,
+    tag::Integer,
+    comm::Comm,
+)
+    return irecv!(buf, count, datatype, source, tag, comm)
+end
+function irecv!(buf::Buffer, source::Integer, tag::Integer, comm::Comm)
+    return irecv!(; buf, source, tag, comm)
+end
+
+export isend
+function isend(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
+    c_request = Ref{MPI_Request}()
+    GC.@preserve buf datatype comm begin
+        ierr = MPI_Isend(buffer_ptr(buf), count, datatype.val, dest, tag, comm.val, c_request)
+    end
+    chkerr(ierr)
+    request = Request(c_request[])
+    request.data = buf
+    finalizer(request) do request
+        request.val == MPI_REQUEST_NULL && return nothing
+        finalized() && return nothing
+        request_free(request)
+    end
+    return request
+end
+function isend(;
+    buf::Buffer, count::Integer=buffer_count(buf), datatype::Datatype=buffer_datatype(buf), dest::Integer, tag::Integer, comm::Comm
+)
+    return isend(buf, count, datatype, dest, tag, comm)
+end
+function isend(buf::Buffer, dest::Integer, tag::Integer, comm::Comm)
+    return isend(; buf, dest, tag, comm)
+end
+function isend(number::Number, dest::Integer, tag::Integer, comm::Comm)
+    return isend(Ref(number), dest::Integer, tag::Integer, comm::Comm)
+end
+
 export probe
 function probe(source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
     c_status = status === nothing ? MPI_STATUS_IGNORE : status
@@ -83,14 +152,19 @@ function recv!(
     end
     chkerr(ierr)
 end
-function recv!(buf::Buffer, datatype::Datatype, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
-    recv!(buf, buffer_count(buf), datatype, source, tag, comm, status)
-end
-function recv!(buf::Buffer, count::Integer, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
-    recv!(buf, count, buffer_datatype(buf), source, tag, comm, status)
+function recv!(;
+    buf::Buffer,
+    count::Integer=buffer_count(buf),
+    datatype::Datatype=buffer_datatype(buf),
+    source::Integer,
+    tag::Integer,
+    comm::Comm,
+    status::Maybe{Ref{Status}},
+)
+    recv!(buf, count, datatype, source, tag, comm, status)
 end
 function recv!(buf::Buffer, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing)
-    recv!(buf, buffer_count(buf), buffer_datatype(buf), source, tag, comm, status)
+    recv!(; buf, source, tag, comm, status)
 end
 function recv(::Type{T}, source::Integer, tag::Integer, comm::Comm, status::Maybe{Ref{Status}}=nothing) where {T}
     probe_status = Ref{MPI_Status}()
@@ -102,6 +176,18 @@ function recv(::Type{T}, source::Integer, tag::Integer, comm::Comm, status::Mayb
     return array
 end
 
+export request_free
+function request_free(request::Request)
+    mpi_request = Ref(request.val)
+    ierr = MPI_Request_free(mpi_request)
+    chkerr(ierr)
+    request.val = mpi_request[]
+    request.data = nothing
+    nothing
+end
+export free
+free(request::Request) = request_free(request)
+
 export send
 function send(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
     GC.@preserve buf datatype comm begin
@@ -109,17 +195,16 @@ function send(buf::Buffer, count::Integer, datatype::Datatype, dest::Integer, ta
     end
     chkerr(ierr)
 end
-function send(buf::Buffer, datatype::Datatype, dest::Integer, tag::Integer, comm::Comm)
-    send(buf, buffer_count(buf), datatype, dest, tag, comm)
-end
-function send(buf::Buffer, count::Integer, dest::Integer, tag::Integer, comm::Comm)
-    send(buf, count, buffer_datatype(buf), dest, tag, comm)
+function send(;
+    buf::Buffer, count::Integer=buffer_count(buf), datatype::Datatype=buffer_datatype(buf), dest::Integer, tag::Integer, comm::Comm
+)
+    send(buf, count, datatype, dest, tag, comm)
 end
 function send(buf::Buffer, dest::Integer, tag::Integer, comm::Comm)
-    send(buf, buffer_count(buf), buffer_datatype(buf), dest, tag, comm)
+    send(; buf, dest, tag, comm)
 end
 function send(number::Number, dest::Integer, tag::Integer, comm::Comm)
-    send(Ref(number), dest::Integer, tag::Integer, comm::Comm)
+    send(Ref(number), dest, tag, comm)
 end
 
 export sendrecv!, sendrecv
@@ -156,335 +241,21 @@ function sendrecv!(
     end
     chkerr(ierr)
 end
-function sendrecv!(
+function sendrecv!(;
     sendbuf::Buffer,
-    sendtype::Datatype,
+    sendcount::Integer=buffer_count(sendbuf),
+    sendtype::Datatype=buffer_datatype(sendbuf),
     dest::Integer,
     sendtag::Integer,
     recvbuf::Buffer,
-    recvcount::Integer,
-    recvtype::Datatype,
+    recvcount::Integer=buffer_count(recvbuf),
+    recvtype::Datatype=buffer_datatype(recvbuf),
     source::Integer,
     recvtag::Integer,
     comm::Comm,
     status::Maybe{Ref{Status}}=nothing,
 )
-    sendrecv!(sendbuf, buffer_count(sendbuf), sendtype, dest, sendtag, recvbuf, recvcount, recvtype, source, recvtag, comm, status)
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvcount::Integer,
-    recvtype::Datatype,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf, sendcount, buffer_datatype(sendbuf), dest, sendtag, recvbuf, recvcount, recvtype, source, recvtag, comm, status
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvcount::Integer,
-    recvtype::Datatype,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        recvcount,
-        recvtype,
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    sendtype::Datatype,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvtype::Datatype,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(sendbuf, sendcount, sendtype, dest, sendtag, recvbuf, buffer_count(recvbuf), recvtype, source, recvtag, comm, status)
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendtype::Datatype,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvtype::Datatype,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        sendtype,
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        recvtype,
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvtype::Datatype,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        sendcount,
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        recvtype,
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvtype::Datatype,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        recvtype,
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    sendtype::Datatype,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvcount::Integer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf, sendcount, sendtype, dest, sendtag, recvbuf, recvcount, buffer_datatype(recvbuf), source, recvtag, comm, status
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendtype::Datatype,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvcount::Integer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        sendtype,
-        dest,
-        sendtag,
-        recvbuf,
-        recvcount,
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvcount::Integer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        sendcount,
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        recvcount,
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    recvcount::Integer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        recvcount,
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    sendtype::Datatype,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        sendcount,
-        sendtype,
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendtype::Datatype,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        sendtype,
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
-end
-function sendrecv!(
-    sendbuf::Buffer,
-    sendcount::Integer,
-    dest::Integer,
-    sendtag::Integer,
-    recvbuf::Buffer,
-    source::Integer,
-    recvtag::Integer,
-    comm::Comm,
-    status::Maybe{Ref{Status}}=nothing,
-)
-    sendrecv!(
-        sendbuf,
-        sendcount,
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
+    sendrecv!(sendbuf, sendcount, sendtype, dest, sendtag, recvbuf, recvcount, recvtype, source, recvtag, comm, status)
 end
 function sendrecv!(
     sendbuf::Buffer,
@@ -496,50 +267,90 @@ function sendrecv!(
     comm::Comm,
     status::Maybe{Ref{Status}}=nothing,
 )
-    sendrecv!(
-        sendbuf,
-        buffer_count(sendbuf),
-        buffer_datatype(sendbuf),
-        dest,
-        sendtag,
-        recvbuf,
-        buffer_count(recvbuf),
-        buffer_datatype(recvbuf),
-        source,
-        recvtag,
-        comm,
-        status,
-    )
+    sendrecv!(; sendbuf, dest, sendtag, recvbuf, source, recvtag, comm, status)
 end
-
 function sendrecv(
     sendbuf::Buffer,
     dest::Integer,
     sendtag::Integer,
+    T::Type,
     source::Integer,
     recvtag::Integer,
     comm::Comm,
     status::Maybe{Ref{Status}}=nothing,
 )
-    recvbuf = buffer_similar(sendbuf)
-    sendrecv!(sendbuf, dest, sendtag, recvbuf, source, recvtag, comm, status)
+    sendrequest = isend(sendbuf, dest, sendtag, comm)
+    recvbuf = recv(T, source, recvtag, comm, status)
+    wait(sendrequest)
     return recvbuf
 end
 function sendrecv(
     sendnumber::Number,
     dest::Integer,
     sendtag::Integer,
+    T::Type,
     source::Integer,
     recvtag::Integer,
     comm::Comm,
     status::Maybe{Ref{Status}}=nothing,
 )
-    return sendrecv(Ref(sendnumber), dest, sendtag, source, recvtag, comm, status)[]
+    return sendrecv(T, Ref(sendnumber), dest, sendtag, source, recvtag, comm, status)
+end
+
+import Base.wait
+function wait(request::Request, status::Maybe{Ref{Status}}=nothing)
+    c_request = Ref(request.val)
+    c_status = status === nothing ? MPI_STATUS_IGNORE : status
+    GC.@preserve request begin
+        ierr = MPI_Wait(c_request, c_status)
+    end
+    chkerr(ierr)
+    request.val = c_request[]
+    result = request.data
+    request.data = nothing
+    return result
 end
 
 ################################################################################
 
 # Chapter 6: Collective Communication
+
+export allgather!, allgather
+function allgather!(
+    sendbuf::Buffer, sendcount::Integer, sendtype::Datatype, recvbuf::Buffer, recvcount::Integer, recvtype::Datatype, comm::Comm
+)
+    GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
+        ierr = MPI_Allgather(buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, comm.val)
+    end
+    chkerr(ierr)
+end
+function allgather!(;
+    sendbuf::Buffer,
+    sendcount::Integer=buffer_count(sendbuf),
+    sendtype::Datatype=buffer_datatype(sendbuf),
+    recvbuf::Buffer,
+    recvcount::Maybe{Integer}=nothing,
+    recvtype::Datatype=buffer_datatype(recvbuf),
+    comm::Comm,
+)
+    if recvcount === nothing
+        recvcount = buffer_count(recvbuf) ÷ comm_size(comm)
+    end
+    allgather!(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm)
+end
+function allgather!(sendbuf::Buffer, recvbuf::Buffer, comm::Comm)
+    allgather!(; sendbuf, recvbuf, comm)
+end
+function allgather(sendbuf::Buffer, comm::Comm)
+    size = comm_size(comm)
+    recvbuf = buffer_similar_sized(sendbuf, size)
+    allgather!(sendbuf, recvbuf, comm)
+    return recvbuf
+end
+function allgather(sendnumber::Number, comm::Comm)
+    result = allgather(Ref(sendnumber), comm)
+    return result
+end
 
 export allreduce!, allreduce
 function allreduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Datatype, op::Op, comm::Comm)
@@ -548,21 +359,18 @@ function allreduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::
     end
     chkerr(ierr)
 end
-function allreduce!(sendbuf::Buffer, recvbuf::Buffer, datatype::Datatype, op::Op, comm::Comm)
-    count = buffer_count(sendbuf)
-    @assert buffer_count(recvbuf) == count
-    allreduce!(sendbuf, recvbuf, count, datatype, op, comm)
-end
-function allreduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, op::Op, comm::Comm)
-    datatype = buffer_datatype(sendbuf)
-    @assert buffer_datatype(recvbuf) == datatype
+function allreduce!(;
+    sendbuf::Buffer,
+    recvbuf::Buffer,
+    count::Integer=buffer_count(sendbuf),
+    datatype::Datatype=buffer_datatype(sendbuf),
+    op::Op,
+    comm::Comm,
+)
     allreduce!(sendbuf, recvbuf, count, datatype, op, comm)
 end
 function allreduce!(sendbuf::Buffer, recvbuf::Buffer, op::Op, comm::Comm)
-    rank = comm_rank(comm)
-    datatype = buffer_datatype(sendbuf)
-    @assert buffer_datatype(recvbuf) == datatype
-    allreduce!(sendbuf, recvbuf, datatype, op, comm)
+    allreduce!(; sendbuf, recvbuf, op, comm)
 end
 function allreduce(sendbuf::Buffer, op::Op, comm::Comm)
     rank = comm_rank(comm)
@@ -583,12 +391,63 @@ function barrier(comm::Comm)
     chkerr(ierr)
 end
 
+export gather!, gather
+function gather!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    sendtype::Datatype,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    recvtype::Datatype,
+    root::Integer,
+    comm::Comm,
+)
+    GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
+        ierr = MPI_Gather(
+            buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, root, comm.val
+        )
+    end
+    chkerr(ierr)
+end
+function gather!(;
+    sendbuf::Buffer,
+    sendcount::Integer=buffer_count(sendbuf),
+    sendtype::Datatype=buffer_datatype(sendbuf),
+    recvbuf::Buffer,
+    recvcount::Maybe{Integer}=nothing,
+    recvtype::Maybe{Datatype}=nothing,
+    root::Integer,
+    comm::Comm,
+)
+    if recvcount === nothing
+        recvcount = comm_rank(comm) == root ? buffer_count(recvbuf) ÷ comm_size(comm) : 0
+    end
+    if recvtype === nothing
+        recvtype = comm_rank(comm) == root ? buffer_datatype(recvbuf) : DATATYPE_NULL
+    end
+    gather!(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm)
+end
+function gather!(sendbuf::Buffer, recvbuf::Buffer, root::Integer, comm::Comm)
+    gather!(; sendbuf, recvbuf, root, comm)
+end
+function gather(sendbuf::Buffer, root::Integer, comm::Comm)
+    rank = comm_rank(comm)
+    size = comm_size(comm)
+    recvbuf = rank == root ? buffer_similar_sized(sendbuf, size) : C_NULL
+    gather!(sendbuf, recvbuf, root, comm)
+    return rank == root ? recvbuf : nothing
+end
+function gather(sendnumber::Number, root::Integer, comm::Comm)
+    result = gather(Ref(sendnumber), root, comm)
+    return result === nothing ? nothing : result
+end
+
 export op_create
 function op_create(user_fn, commute::Bool)
     function user_fn_wrapper(invec::Ptr{Cvoid}, inoutvec::Ptr{Cvoid}, lenptr::Ref{Cint}, datatypeptr::Ref{MPI_Datatype})
         len = unsafe_load(lenptr)
         datatype = unsafe_load(datatypeptr)
-        T = convert(Type, datatype)
+        T = julia_type(datatype)
         user_fn(unsafe_wrap(Array, Ptr{T}(invec), len), unsafe_wrap(Array, Ptr{T}(inoutvec), len))
         nothing
     end
@@ -609,7 +468,8 @@ Op(user_fn, commute::Bool) = op_create(user_fn, commute)
 export op_free
 function op_free(op::Op)
     mpi_op = Ref(op.val)
-    MPI_Op_free(mpi_op)
+    ierr = MPI_Op_free(mpi_op)
+    chkerr(ierr)
     op.val = mpi_op[]
     op.data = nothing
     nothing
@@ -625,26 +485,19 @@ function reduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Dat
     end
     chkerr(ierr)
 end
-function reduce!(sendbuf::Buffer, recvbuf::Buffer, datatype::Datatype, op::Op, root::Integer, comm::Comm)
-    rank = comm_rank(comm)
-    count = buffer_count(sendbuf)
-    if rank == root
-        @assert buffer_count(recvbuf) == count
-    end
-    reduce!(sendbuf, recvbuf, count, datatype, op, root, comm)
-end
-function reduce!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, op::Op, root::Integer, comm::Comm)
-    datatype = buffer_datatype(sendbuf)
-    @assert buffer_datatype(recvbuf) == datatype
+function reduce!(;
+    sendbuf::Buffer,
+    recvbuf::Buffer,
+    count::Integer=buffer_count(sendbuf),
+    datatype::Datatype=buffer_datatype(sendbuf),
+    op::Op,
+    root::Integer,
+    comm::Comm,
+)
     reduce!(sendbuf, recvbuf, count, datatype, op, root, comm)
 end
 function reduce!(sendbuf::Buffer, recvbuf::Buffer, op::Op, root::Integer, comm::Comm)
-    rank = comm_rank(comm)
-    datatype = buffer_datatype(sendbuf)
-    if rank == root
-        @assert buffer_datatype(recvbuf) == datatype
-    end
-    reduce!(sendbuf, recvbuf, datatype, op, root, comm)
+    reduce!(; sendbuf, recvbuf, op, root, comm)
 end
 function reduce(sendbuf::Buffer, op::Op, root::Integer, comm::Comm)
     rank = comm_rank(comm)

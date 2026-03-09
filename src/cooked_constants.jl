@@ -22,6 +22,14 @@ mutable struct Op
 end
 Base.:(==)(op1::Op, op2::Op) = op1.val == op2.val
 
+export Request
+mutable struct Request
+    val::MPI_Request
+    data
+    Request(val::MPI_Request) = new(val, nothing)
+end
+Base.:(==)(request1::Request, request2::Request) = request1.val == request2.val
+
 export Status
 const Status = MPI_Status
 
@@ -32,11 +40,17 @@ const COMM_WORLD = Comm(MPI_COMM_WORLD)
 const COMM_NULL = Comm(MPI_COMM_NULL)
 const COMM_SELF = Comm(MPI_COMM_SELF)
 
-export DATATYPE_NULL
-const DATATYPE_NULL = Datatype(MPI_DATATYPE_NULL)
-Datatype(::Type{T}) where {T<:predefined_mpi_types} = Datatype(convert(MPI_Datatype, T))
+export DATATYPE_NULL, DATATYPE_INT, DATATYPE_LONG_LONG, DATATYPE_FLOAT, DATATYPE_DOUBLE
 
-Base.convert(::Type{Type}, datatype::Datatype) = convert(Type, datatype.val)
+const DATATYPE_NULL = Datatype(MPI_DATATYPE_NULL)
+const DATATYPE_INT = Datatype(MPI_INT)
+const DATATYPE_LONG_LONG = Datatype(MPI_LONG_LONG)
+const DATATYPE_FLOAT = Datatype(MPI_FLOAT)
+const DATATYPE_DOUBLE = Datatype(MPI_DOUBLE)
+
+Datatype(::Type{T}) where {T<:Union{predefined_mpi_types...}} = Datatype(mpi_datatype(T))
+export julia_type
+julia_type(datatype::Datatype) = julia_type(datatype.val)
 
 export OP_NULL,
     OP_SUM, OP_MIN, OP_MAX, OP_PROD, OP_BAND, OP_BOR, OP_BXOR, OP_LAND, OP_LOR, OP_LXOR, OP_MINLOC, OP_MAXLOC, OP_REPLACE, OP_NO_OP
@@ -55,6 +69,7 @@ const OP_MINLOC = Op(MPI_MINLOC)
 const OP_MAXLOC = Op(MPI_MAXLOC)
 const OP_REPLACE = Op(MPI_REPLACE)
 const OP_NO_OP = Op(MPI_NO_OP)
+
 Op(::typeof(+)) = OP_SUM
 Op(::typeof(min)) = OP_MIN
 Op(::typeof(max)) = OP_MAX
@@ -95,9 +110,13 @@ buffer_similar(::Ptr) = error("Cannot allocate receive buffer for a pointer")
 buffer_similar(::Ref{T}) where {T} = Ref{T}()
 buffer_similar(array::Array) = similar(array)
 
-buffer_ptr(ptr::Ptr) = ptr
-buffer_ptr(ref::Ref{T}) where {T} = Base.unsafe_convert(Ptr{T}, ref)
-buffer_ptr(array::Array) = pointer(array)
+buffer_similar_sized(::Ptr, ::Integer) = error("Cannot allocate receive buffer for a pointer")
+buffer_similar_sized(::Ref{T}, newsize::Integer) where {T} = Vector{T}(undef, newsize)
+buffer_similar_sized(array::Array{T}, newsize::Integer) where {T} = Array{T}(undef, size(array)..., newsize)
+
+buffer_ptr(ptr::Ptr) = Ptr{Cvoid}(ptr)
+buffer_ptr(ref::Ref{T}) where {T} = Ptr{Cvoid}(Base.unsafe_convert(Ptr{T}, ref))
+buffer_ptr(array::Array) = Ptr{Cvoid}(pointer(array))
 
 buffer_datatype(::Buffer{T}) where {T} = Datatype(T)
 

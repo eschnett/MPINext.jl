@@ -56,6 +56,8 @@ const MPI_LONG_LONG = MPI_Datatype(0x4c000009 + 0x100 * sizeof(Clonglong))
 const MPI_FLOAT = MPI_Datatype(0x4c00000a + 0x100 * sizeof(Cfloat))
 const MPI_DOUBLE = MPI_Datatype(0x4c00000b + 0x100 * sizeof(Cdouble))
 
+const MPI_REQUEST_NULL = MPI_Op(0x2c000000)
+
 const MPI_OP_NULL = MPI_Op(0x18000000)
 const MPI_SUM = MPI_Op(0x58000003)
 const MPI_MIN = MPI_Op(0x58000002)

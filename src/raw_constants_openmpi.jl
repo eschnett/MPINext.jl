@@ -74,6 +74,8 @@ MPI_LONG_LONG::MPI_Datatype = MPI_Datatype(0)
 MPI_FLOAT::MPI_Datatype = MPI_Datatype(0)
 MPI_DOUBLE::MPI_Datatype = MPI_Datatype(0)
 
+MPI_REQUEST_NULL = MPI_Op(0)
+
 MPI_OP_NULL::MPI_Op = MPI_Op(0)
 MPI_SUM::MPI_Op = MPI_Op(0)
 MPI_MIN::MPI_Op = MPI_Op(0)
@@ -104,6 +106,8 @@ push!(init_functions, function ()
     global MPI_LONG_LONG = MPI_Datatype(cglobal((:ompi_mpi_long_long_int, libmpi)))
     global MPI_FLOAT = MPI_Datatype(cglobal((:ompi_mpi_float, libmpi)))
     global MPI_DOUBLE = MPI_Datatype(cglobal((:ompi_mpi_double, libmpi)))
+
+    global MPI_REQUEST_NULL = MPI_Op(cglobal((:ompi_mpi_request_null, libmpi)))
 
     global MPI_OP_NULL = MPI_Op(cglobal((:ompi_mpi_op_null, libmpi)))
     global MPI_SUM = MPI_Op(cglobal((:ompi_mpi_op_sum, libmpi)))

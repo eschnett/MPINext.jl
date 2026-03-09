@@ -8,19 +8,18 @@ else
     error("Unknown MPI abi: $abi")
 end
 
-const predefined_mpi_types_list = [Cint, Clonglong, Cfloat, Cdouble]
-const predefined_mpi_types = Union{predefined_mpi_types_list...}
+const predefined_mpi_types = [Cint, Clonglong, Cfloat, Cdouble]
 
-Base.convert(::Type{MPI_Datatype}, ::Type{Cint}) = MPI_INT
 # Skip `Clong`, it is either the same as `Cint` or as `Clonglong`
-Base.convert(::Type{MPI_Datatype}, ::Type{Clonglong}) = MPI_LONG_LONG
-Base.convert(::Type{MPI_Datatype}, ::Type{Cfloat}) = MPI_FLOAT
-Base.convert(::Type{MPI_Datatype}, ::Type{Cdouble}) = MPI_DOUBLE
+mpi_datatype(::Type{Cint}) = MPI_INT
+mpi_datatype(::Type{Clonglong}) = MPI_LONG_LONG
+mpi_datatype(::Type{Cfloat}) = MPI_FLOAT
+mpi_datatype(::Type{Cdouble}) = MPI_DOUBLE
 
-function Base.convert(::Type{Type}, datatype::MPI_Datatype)
-    datatype == MPI_INT && return Cint
-    datatype == MPI_LONG_LONG && return Clonglong
-    datatype == MPI_FLOAT && return Cfloat
-    datatype == MPI_DOUBLE && return Cdouble
+function julia_type(mpi_datatype::Cint)
+    mpi_datatype == MPI_INT && return Cint
+    mpi_datatype == MPI_LONG_LONG && return Clonglong
+    mpi_datatype == MPI_FLOAT && return Cfloat
+    mpi_datatype == MPI_DOUBLE && return Cdouble
     error("Unsupported MPI_Datatype $datatype")
 end
