@@ -446,6 +446,43 @@ function allreduce(sendnumber::Number, op::Op, comm::Comm)
     return result[]
 end
 
+export alltoall!, alltoall
+function alltoall!(
+    sendbuf::Buffer, sendcount::Integer, sendtype::Datatype, recvbuf::Buffer, recvcount::Integer, recvtype::Datatype, comm::Comm
+)
+    GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
+        ierr = MPI_Alltoall(buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, comm.val)
+    end
+    chkerr(ierr)
+end
+function alltoall!(;
+    sendbuf::Buffer,
+    sendcount::Maybe{Integer}=nothing,
+    sendtype::Datatype=buffer_datatype(sendbuf),
+    recvbuf::Buffer,
+    recvcount::Maybe{Integer}=nothing,
+    recvtype::Datatype=buffer_datatype(recvbuf),
+    comm::Comm,
+)
+    if sendcount === nothing
+        size = comm_size(comm)
+        sendcount = buffer_count(sendbuf) ÷ size
+    end
+    if recvcount === nothing
+        size = comm_size(comm)
+        recvcount = buffer_count(recvbuf) ÷ size
+    end
+    alltoall!(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, comm)
+end
+function alltoall!(sendbuf::Buffer, recvbuf::Buffer, comm::Comm)
+    alltoall!(; sendbuf, recvbuf, comm)
+end
+function alltoall(sendbuf::Buffer, comm::Comm)
+    recvbuf = similar(sendbuf)
+    alltoall!(sendbuf, recvbuf, comm)
+    return recvbuf
+end
+
 export barrier
 function barrier(comm::Comm)
     GC.@preserve comm begin

@@ -22,6 +22,11 @@ ispoison(array::Array) = all(ispoison, array)
 poison!(ref::Ref{T}) where {T} = (ref[] = poison(T))
 poison!(array::Array{T}) where {T} = fill!(array, poison(T))
 
+function printf(str::String)
+    @ccall jl_safe_printf(str::Cstring)::Cvoid
+    nothing
+end
+
 ################################################################################
 
 # Which rank are we? Get this straight from the MPI implementation, MPI has not been initialized yet.
@@ -49,7 +54,7 @@ println("+++ This is MPI process $rank_from_env of $size_from_env")
 
 ################################################################################
 
-@testset "MPI_Init" begin
+@testset verbose=true showtiming=true "MPI_Init" begin
     @test !initialized()
     @test !finalized()
     init()
@@ -61,41 +66,9 @@ const comm = COMM_WORLD
 const rank = comm_rank(comm)
 const size = comm_size(comm)
 
-@testset "MPI environment" begin
+@testset verbose=true showtiming=true "MPI environment" begin
     @test rank == rank_from_env
     @test size == size_from_env
-end
-
-barrier(comm)
-@testset "Datatype" begin
-    DATATYPE_NULL::Datatype
-    for T in M.predefined_mpi_types
-        raw_datatype = M.mpi_datatype(T)
-        raw_datatype::M.Handle
-        T1 = julia_type(raw_datatype)
-        @test T1 == T
-        datatype = Datatype(T)
-        datatype::Datatype
-        T2 = julia_type(datatype)
-        @test T2 == T
-    end
-end
-
-barrier(comm)
-@testset "Comm" begin
-    @test COMM_NULL isa Comm
-    @test COMM_SELF isa Comm
-    @test COMM_WORLD isa Comm
-
-    @test comm_rank(COMM_SELF) == 0
-    @test comm_size(COMM_SELF) == 1
-    @test comm_rank(COMM_WORLD) == rank_from_env
-    @test comm_size(COMM_WORLD) == size_from_env
-end
-
-function printf(str::String)
-    @ccall jl_safe_printf(str::Cstring)::Cvoid
-    nothing
 end
 
 vecadd!(invec::Vector, inoutvec::Vector) = (inoutvec .+= invec)
@@ -106,63 +79,92 @@ vecband!(invec::Vector, inoutvec::Vector) = (inoutvec .&= invec)
 vecbor!(invec::Vector, inoutvec::Vector) = (inoutvec .|= invec)
 vecbxor!(invec::Vector, inoutvec::Vector) = (inoutvec .⊻= invec)
 
-barrier(comm)
-@testset "Op" begin
-    @test OP_NULL isa Op
-    @test OP_SUM isa Op
-    @test OP_MIN isa Op
-    @test OP_MAX isa Op
-    @test OP_PROD isa Op
-    @test OP_BAND isa Op
-    @test OP_BOR isa Op
-    @test OP_BXOR isa Op
-    @test OP_LAND isa Op
-    @test OP_LOR isa Op
-    @test OP_LXOR isa Op
-    @test OP_MINLOC isa Op
-    @test OP_MAXLOC isa Op
-    @test OP_REPLACE isa Op
-    @test OP_NO_OP isa Op
+@testset verbose=true showtiming=true "Handles" begin
+    barrier(comm)
+    @testset "Comm" begin
+        @test COMM_NULL isa Comm
+        @test COMM_SELF isa Comm
+        @test COMM_WORLD isa Comm
 
-    @test Op(+) isa Op
-    @test Op(min) isa Op
-    @test Op(max) isa Op
-    @test Op(*) isa Op
-    @test Op(&) isa Op
-    @test Op(|) isa Op
-    @test Op(⊻) isa Op
-
-    mysum = op_create(vecadd!, true)::Op
-    mymin = op_create(vecmin!, true)::Op
-    mymax = op_create(vecmax!, true)::Op
-    myprod = op_create(vecmul!, true)::Op
-    myband = op_create(vecband!, true)::Op
-    mybor = op_create(vecbor!, true)::Op
-    mybxor = op_create(vecbxor!, true)::Op
-    for i in 1:10
-        GC.gc(true)
+        @test comm_rank(COMM_SELF) == 0
+        @test comm_size(COMM_SELF) == 1
+        @test comm_rank(COMM_WORLD) == rank_from_env
+        @test comm_size(COMM_WORLD) == size_from_env
     end
 
-    op_free(mysum)
-    op_free(mymin)
-    op_free(mymax)
-    op_free(myprod)
-    op_free(myband)
-    op_free(mybor)
-    op_free(mybxor)
-    for i in 1:10
-        GC.gc(true)
+    barrier(comm)
+    @testset "Datatype" begin
+        DATATYPE_NULL::Datatype
+        for T in M.predefined_mpi_types
+            raw_datatype = M.mpi_datatype(T)
+            raw_datatype::M.Handle
+            T1 = julia_type(raw_datatype)
+            @test T1 == T
+            datatype = Datatype(T)
+            datatype::Datatype
+            T2 = julia_type(datatype)
+            @test T2 == T
+        end
+    end
+
+    barrier(comm)
+    @testset "Op" begin
+        @test OP_NULL isa Op
+        @test OP_SUM isa Op
+        @test OP_MIN isa Op
+        @test OP_MAX isa Op
+        @test OP_PROD isa Op
+        @test OP_BAND isa Op
+        @test OP_BOR isa Op
+        @test OP_BXOR isa Op
+        @test OP_LAND isa Op
+        @test OP_LOR isa Op
+        @test OP_LXOR isa Op
+        @test OP_MINLOC isa Op
+        @test OP_MAXLOC isa Op
+        @test OP_REPLACE isa Op
+        @test OP_NO_OP isa Op
+
+        @test Op(+) isa Op
+        @test Op(min) isa Op
+        @test Op(max) isa Op
+        @test Op(*) isa Op
+        @test Op(&) isa Op
+        @test Op(|) isa Op
+        @test Op(⊻) isa Op
+
+        mysum = op_create(vecadd!, true)::Op
+        mymin = op_create(vecmin!, true)::Op
+        mymax = op_create(vecmax!, true)::Op
+        myprod = op_create(vecmul!, true)::Op
+        myband = op_create(vecband!, true)::Op
+        mybor = op_create(vecbor!, true)::Op
+        mybxor = op_create(vecbxor!, true)::Op
+        for i in 1:10
+            GC.gc(true)
+        end
+
+        op_free(mysum)
+        op_free(mymin)
+        op_free(mymax)
+        op_free(myprod)
+        op_free(myband)
+        op_free(mybor)
+        op_free(mybxor)
+        for i in 1:10
+            GC.gc(true)
+        end
     end
 end
 
-barrier(comm)
-@testset "Point-to-point" begin
+@testset verbose=true showtiming=true "Point-to-point" begin
     source = mod(rank - 1, size)
     dest = mod(rank + 1, size)
     tag = 12
 
-    for T in M.predefined_mpi_types
-        function test_send_and_recv(sendbuf, wantbuf, recvbuf)
+    barrier(comm)
+    @testset "send and recv" begin
+        function runtests(T::Type, sendbuf, wantbuf, recvbuf)
             if size > 1
                 # With status
                 if rank != size - 1
@@ -215,7 +217,31 @@ barrier(comm)
             end
         end
 
-        function test_isend_and_irecv(sendbuf, wantbuf, recvbuf)
+        for T in M.predefined_mpi_types
+            msg(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
+
+            # Scalar
+            sendbuf = Ref(msg(rank))
+            wantbuf = Ref(msg(source))
+            recvbuf = Ref{T}()
+
+            runtests(T, sendbuf, wantbuf, recvbuf)
+
+            # Arrays
+            for D in 0:4
+                sz = ntuple(d -> d+2, D)
+                sendbuf = fill(msg(rank), sz)
+                wantbuf = fill(msg(source), sz)
+                recvbuf = similar(wantbuf)
+
+                runtests(T, sendbuf, wantbuf, recvbuf)
+            end
+        end
+    end
+
+    barrier(comm)
+    @testset "isend and irecv" begin
+        function runtests(T, sendbuf, wantbuf, recvbuf)
             # With status
             sendrequest = isend(sendbuf, dest, tag, comm)
             poison!(recvbuf)
@@ -258,7 +284,31 @@ barrier(comm)
             @test buf === sendbuf
         end
 
-        function test_sendrecv(sendbuf, wantbuf, recvbuf)
+        for T in M.predefined_mpi_types
+            msg(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
+
+            # Scalar
+            sendbuf = Ref(msg(rank))
+            wantbuf = Ref(msg(source))
+            recvbuf = Ref{T}()
+
+            runtests(T, sendbuf, wantbuf, recvbuf)
+
+            # Arrays
+            for D in 0:4
+                sz = ntuple(d -> d+2, D)
+                sendbuf = fill(msg(rank), sz)
+                wantbuf = fill(msg(source), sz)
+                recvbuf = similar(wantbuf)
+
+                runtests(T, sendbuf, wantbuf, recvbuf)
+            end
+        end
+    end
+
+    barrier(comm)
+    @testset "sendrecv" begin
+        function runtests(T, sendbuf, wantbuf, recvbuf)
             # With status
             status = Ref{Status}()
             poison!(recvbuf)
@@ -302,42 +352,77 @@ barrier(comm)
             @test all(recvbuf .== wantbuf)
         end
 
-        msg(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
+        for T in M.predefined_mpi_types
+            msg(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
 
-        # Scalar
-        sendbuf = Ref(msg(rank))
-        wantbuf = Ref(msg(source))
-        recvbuf = Ref{T}()
+            # Scalar
+            sendbuf = Ref(msg(rank))
+            wantbuf = Ref(msg(source))
+            recvbuf = Ref{T}()
 
-        test_send_and_recv(sendbuf, wantbuf, recvbuf)
-        test_isend_and_irecv(sendbuf, wantbuf, recvbuf)
-        test_sendrecv(sendbuf, wantbuf, recvbuf)
+            runtests(T, sendbuf, wantbuf, recvbuf)
 
-        # Arrays
-        for D in 0:4
-            sz = ntuple(d -> d+2, D)
-            sendbuf = fill(msg(rank), sz)
-            wantbuf = fill(msg(source), sz)
-            recvbuf = similar(wantbuf)
+            # Arrays
+            for D in 0:4
+                sz = ntuple(d -> d+2, D)
+                sendbuf = fill(msg(rank), sz)
+                wantbuf = fill(msg(source), sz)
+                recvbuf = similar(wantbuf)
 
-            test_send_and_recv(sendbuf, wantbuf, recvbuf)
-            test_isend_and_irecv(sendbuf, wantbuf, recvbuf)
-            test_sendrecv(sendbuf, wantbuf, recvbuf)
+                runtests(T, sendbuf, wantbuf, recvbuf)
+            end
         end
     end
 end
 
 barrier(comm)
-@testset "Collective" begin
+@testset verbose=true showtiming=true "Collective" begin
     root = size ÷ 2
 
-    mysum = op_create(vecadd!, true)
-    mymin = op_create(vecmin!, true)
-    mymax = op_create(vecmax!, true)
-    myprod = op_create(vecmul!, true)
+    mysum = op_create(vecadd!, true)::Op
+    mymin = op_create(vecmin!, true)::Op
+    mymax = op_create(vecmax!, true)::Op
+    myprod = op_create(vecmul!, true)::Op
     myband = op_create(vecband!, true)::Op
     mybor = op_create(vecbor!, true)::Op
     mybxor = op_create(vecbxor!, true)::Op
+
+    function operators(T::Type)
+        ops = []
+        if T <: Union{Integer,AbstractFloat}
+            append!(
+                ops,
+                [
+                    (Op(+), +),
+                    (Op(min), min),
+                    (Op(max), max),
+                    (Op(*), *),
+                    (mysum, +),
+                    (mymin, min),
+                    (mymax, max),
+                    (myprod, *),
+                    (OP_REPLACE, (x, y) -> y),
+                ],
+            )
+        end
+        if T <: Integer
+            append!(
+                ops,
+                [
+                    (Op(&), &),
+                    (Op(|), |),
+                    (Op(⊻), ⊻),
+                    (myband, &),
+                    (mybor, |),
+                    (mybxor, ⊻),
+                    (OP_LAND, (x, y) -> (x!=0) & (y!=0)),
+                    (OP_LOR, (x, y) -> (x!=0) | (y!=0)),
+                    (OP_LXOR, (x, y) -> (x!=0) ⊻ (y!=0)),
+                ],
+            )
+        end
+        return ops
+    end
 
     for T in M.predefined_mpi_types
         function test_reduce(sendbuf, wantbuf, recvbuf, op)
@@ -440,6 +525,26 @@ barrier(comm)
             @test all(result .== wantbuf)
         end
 
+        function test_alltoall(sendbuf, wantbuf, recvbuf)
+            # Regular API
+            poison!(recvbuf)
+            alltoall!(sendbuf, recvbuf, comm)
+            @test all(recvbuf .== wantbuf)
+
+            # Low-level pointer API
+            poison!(recvbuf)
+            alltoall!(
+                pointer(sendbuf), length(sendbuf) ÷ size, Datatype(T), pointer(recvbuf), length(recvbuf) ÷ size, Datatype(T), comm
+            )
+            @test all(recvbuf .== wantbuf)
+
+            # Without receive buffer
+            result = alltoall(sendbuf, comm)
+            @test eltype(result) == T
+            @test length(result) == length(wantbuf)
+            @test all(result .== wantbuf)
+        end
+
         operators = []
         if T <: Union{Integer,AbstractFloat}
             append!(
@@ -452,6 +557,8 @@ barrier(comm)
         end
 
         input(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
+
+        # reduce, allreduce
 
         for (op, julia_op) in operators
             output = reduce(julia_op, input(proc) for proc in 0:(size - 1))
@@ -474,6 +581,8 @@ barrier(comm)
             end
         end
 
+        # gather, allgather
+
         # Scalars
         sendbuf = Ref(input(rank))
         wantbuf = [input(proc) for proc in 0:(size - 1)]
@@ -490,11 +599,23 @@ barrier(comm)
 
             test_gather(sendbuf, wantbuf, recvbuf)
         end
+
+        # alltoall
+
+        # Arrays
+        for D in 0:4
+            sz = ntuple(d -> d+2, D)
+            sendbuf = stack(fill(input(rank + 2 * proc), sz) for proc in 0:(size - 1))
+            wantbuf = stack(fill(input(proc + 2 * rank), sz) for proc in 0:(size - 1))
+            recvbuf = similar(wantbuf)
+
+            test_alltoall(sendbuf, wantbuf, recvbuf)
+        end
     end
 end
 
 barrier(comm)
-@testset "MPI_Finalize" begin
+@testset verbose=true showtiming=true "MPI_Finalize" begin
     @test initialized()
     @test !finalized()
     finalize()
