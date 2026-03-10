@@ -4,12 +4,14 @@ const did_init = Ref(false)
 
 const have_MPI_Allgather_c = Ref(false)
 const have_MPI_Allreduce_c = Ref(false)
+const have_MPI_Exscan_c = Ref(false)
 const have_MPI_Gather_c = Ref(false)
 const have_MPI_Get_count_c = Ref(false)
 const have_MPI_Irecv_c = Ref(false)
 const have_MPI_Isend_c = Ref(false)
 const have_MPI_Recv_c = Ref(false)
 const have_MPI_Reduce_c = Ref(false)
+const have_MPI_Scan_c = Ref(false)
 const have_MPI_Scatter_c = Ref(false)
 const have_MPI_Send_c = Ref(false)
 const have_MPI_Sendrecv_c = Ref(false)
@@ -17,12 +19,14 @@ const have_MPI_Sendrecv_c = Ref(false)
 push!(init_functions, function ()
     have_MPI_Allgather_c[] = dlsym(libmpi_handle[], "MPI_Allgather_c"; throw_error=false) !== nothing
     have_MPI_Allreduce_c[] = dlsym(libmpi_handle[], "MPI_Allreduce_c"; throw_error=false) !== nothing
+    have_MPI_Exscan_c[] = dlsym(libmpi_handle[], "MPI_Exscan_c"; throw_error=false) !== nothing
     have_MPI_Gather_c[] = dlsym(libmpi_handle[], "MPI_Gather_c"; throw_error=false) !== nothing
     have_MPI_Get_count_c[] = dlsym(libmpi_handle[], "MPI_Get_count_c"; throw_error=false) !== nothing
     have_MPI_Irecv_c[] = dlsym(libmpi_handle[], "MPI_Irecv_c"; throw_error=false) !== nothing
     have_MPI_Isend_c[] = dlsym(libmpi_handle[], "MPI_Isend_c"; throw_error=false) !== nothing
     have_MPI_Recv_c[] = dlsym(libmpi_handle[], "MPI_Recv_c"; throw_error=false) !== nothing
     have_MPI_Reduce_c[] = dlsym(libmpi_handle[], "MPI_Reduce_c"; throw_error=false) !== nothing
+    have_MPI_Scan_c[] = dlsym(libmpi_handle[], "MPI_Scan_c"; throw_error=false) !== nothing
     have_MPI_Scatter_c[] = dlsym(libmpi_handle[], "MPI_Scatter_c"; throw_error=false) !== nothing
     have_MPI_Send_c[] = dlsym(libmpi_handle[], "MPI_Send_c"; throw_error=false) !== nothing
     have_MPI_Sendrecv_c[] = dlsym(libmpi_handle[], "MPI_Sendrecv_c"; throw_error=false) !== nothing
@@ -493,6 +497,43 @@ function barrier(comm::Comm)
     chkerr(ierr)
 end
 
+export exscan!, exscan
+function exscan!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Datatype, op::Op, comm::Comm)
+    GC.@preserve sendbuf recvbuf datatype op comm begin
+        if have_MPI_Exscan_c[]
+            ierr = MPI_Exscan_c(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        else
+            ierr = MPI_Exscan(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        end
+    end
+    chkerr(ierr)
+end
+function exscan!(;
+    sendbuf::Buffer,
+    recvbuf::Buffer,
+    count::Integer=buffer_count(sendbuf),
+    datatype::Datatype=buffer_datatype(sendbuf),
+    op::Op,
+    comm::Comm,
+)
+    exscan!(sendbuf, recvbuf, count, datatype, op, comm)
+end
+function exscan!(sendbuf::Buffer, recvbuf::Buffer, op::Op, comm::Comm)
+    exscan!(; sendbuf, recvbuf, op, comm)
+end
+function exscan(sendbuf::Buffer, op::Op, comm::Comm)
+    # `C_NULL` is now allowed here. A real buffer is necessary.
+    T = eltype(sendbuf)
+    rank = comm_rank(comm)
+    recvbuf = rank == 0 ? T[] : buffer_similar(sendbuf)
+    exscan!(sendbuf, recvbuf, op, comm)
+    return rank == 0 ? nothing : recvbuf
+end
+function exscan(sendnumber::Number, op::Op, comm::Comm)
+    result = exscan(Ref(sendnumber), op, comm)
+    return result === nothing ? nothing : result[]
+end
+
 export gather!, gather
 function gather!(
     sendbuf::Buffer,
@@ -620,6 +661,41 @@ end
 function reduce(sendnumber::Number, op::Op, root::Integer, comm::Comm)
     result = reduce(Ref(sendnumber), op, root, comm)
     return result === nothing ? nothing : result[]
+end
+
+export scan!, scan
+function scan!(sendbuf::Buffer, recvbuf::Buffer, count::Integer, datatype::Datatype, op::Op, comm::Comm)
+    GC.@preserve sendbuf recvbuf datatype op comm begin
+        if have_MPI_Scan_c[]
+            ierr = MPI_Scan_c(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        else
+            ierr = MPI_Scan(buffer_ptr(sendbuf), buffer_ptr(recvbuf), count, datatype.val, op.val, comm.val)
+        end
+    end
+    chkerr(ierr)
+end
+function scan!(;
+    sendbuf::Buffer,
+    recvbuf::Buffer,
+    count::Integer=buffer_count(sendbuf),
+    datatype::Datatype=buffer_datatype(sendbuf),
+    op::Op,
+    comm::Comm,
+)
+    scan!(sendbuf, recvbuf, count, datatype, op, comm)
+end
+function scan!(sendbuf::Buffer, recvbuf::Buffer, op::Op, comm::Comm)
+    scan!(; sendbuf, recvbuf, op, comm)
+end
+function scan(sendbuf::Buffer, op::Op, comm::Comm)
+    rank = comm_rank(comm)
+    recvbuf = buffer_similar(sendbuf)
+    scan!(sendbuf, recvbuf, op, comm)
+    return recvbuf
+end
+function scan(sendnumber::Number, op::Op, comm::Comm)
+    result = scan(Ref(sendnumber), op, comm)
+    return result[]
 end
 
 export scatter!

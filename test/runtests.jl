@@ -456,6 +456,7 @@ barrier(comm)
                 @test result === nothing
             end
 
+            # Regular API
             poison!(recvbuf)
             allreduce!(sendbuf, recvbuf, op, comm)
             @test all(recvbuf .== wantbuf)
@@ -472,6 +473,58 @@ barrier(comm)
             @test eltype(result) == T
             @test length(result) == length(wantbuf)
             @test all(result .== wantbuf)
+        end
+
+        function test_scan(sendbuf, wantbuf, recvbuf, op)
+            # Regular API
+            poison!(recvbuf)
+            scan!(sendbuf, recvbuf, op, comm)
+            @test all(recvbuf .== wantbuf)
+
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                poison!(recvbuf)
+                scan!(pointer(sendbuf), pointer(recvbuf), length(sendbuf), Datatype(T), op, comm)
+                @test all(recvbuf .== wantbuf)
+            end
+
+            # Without receive buffer
+            result = scan(sendbuf, op, comm)
+            @test eltype(result) == T
+            @test length(result) == length(wantbuf)
+            @test all(result .== wantbuf)
+        end
+
+        function test_exscan(sendbuf, wantbuf, recvbuf, op)
+            # Regular API
+            poison!(recvbuf)
+            exscan!(sendbuf, recvbuf, op, comm)
+            if rank != 0
+                @test all(recvbuf .== wantbuf)
+            else
+                @test ispoison(recvbuf)
+            end
+
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                poison!(recvbuf)
+                exscan!(pointer(sendbuf), pointer(recvbuf), length(sendbuf), Datatype(T), op, comm)
+                if rank != 0
+                    @test all(recvbuf .== wantbuf)
+                else
+                    @test ispoison(recvbuf)
+                end
+            end
+
+            # Without receive buffer
+            result = exscan(sendbuf, op, comm)
+            if rank != 0
+                @test eltype(result) == T
+                @test length(result) == length(wantbuf)
+                @test all(result .== wantbuf)
+            else
+                @test result === nothing
+            end
         end
 
         function test_gather(sendbuf, wantbuf, recvbuf)
@@ -506,6 +559,7 @@ barrier(comm)
                 @test result === nothing
             end
 
+            # Regular API
             poison!(recvbuf)
             allgather!(sendbuf, recvbuf, comm)
             @test all(recvbuf .== wantbuf)
@@ -591,6 +645,52 @@ barrier(comm)
                 recvbuf = similar(wantbuf)
 
                 test_reduce(sendbuf, wantbuf, recvbuf, op)
+            end
+        end
+
+        # scan
+
+        for (op, julia_op) in operators
+            output = accumulate(julia_op, input(proc) for proc in 0:(size - 1))
+
+            # Scalars
+            sendbuf = Ref(input(rank))
+            wantbuf = Ref(output[rank + 1])
+            recvbuf = Ref{T}()
+
+            test_scan(sendbuf, wantbuf, recvbuf, op)
+
+            # Arrays
+            for D in 0:4
+                sz = ntuple(d -> d+2, D)
+                sendbuf = fill(input(rank), sz)
+                wantbuf = fill(output[rank + 1], sz)
+                recvbuf = similar(wantbuf)
+
+                test_scan(sendbuf, wantbuf, recvbuf, op)
+            end
+        end
+
+        # exscan
+
+        for (op, julia_op) in operators
+            output = accumulate(julia_op, input(proc) for proc in 0:(size - 1))
+
+            # Scalars
+            sendbuf = Ref(input(rank))
+            wantbuf = Ref(output[mod(rank - 1, size) + 1])
+            recvbuf = Ref{T}()
+
+            test_exscan(sendbuf, wantbuf, recvbuf, op)
+
+            # Arrays
+            for D in 0:4
+                sz = ntuple(d -> d+2, D)
+                sendbuf = fill(input(rank), sz)
+                wantbuf = fill(output[mod(rank - 1, size) + 1], sz)
+                recvbuf = similar(wantbuf)
+
+                test_exscan(sendbuf, wantbuf, recvbuf, op)
             end
         end
 
