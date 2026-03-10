@@ -425,6 +425,24 @@ barrier(comm)
     end
 
     for T in M.predefined_mpi_types
+        function test_bcast(sendbuf, wantbuf)
+            # Regular API
+            if rank != root
+                poison!(sendbuf)
+            end
+            bcast!(sendbuf, root, comm)
+            @test all(sendbuf .== wantbuf)
+
+            # Low-level pointer API
+            if !(sendbuf isa Ref)
+                if rank != root
+                    poison!(sendbuf)
+                end
+                bcast!(pointer(sendbuf), length(sendbuf), Datatype(T), root, comm)
+                @test all(sendbuf .== wantbuf)
+            end
+        end
+
         function test_reduce(sendbuf, wantbuf, recvbuf, op)
             # Regular API
             poison!(recvbuf)
@@ -624,6 +642,23 @@ barrier(comm)
         end
 
         input(proc) = T <: Tuple ? T((2*proc+1, 2*proc+2)) : T(2*proc+1)
+
+        # bcast
+
+        # Scalars
+        sendbuf = Ref(input(rank))
+        wantbuf = Ref(input(root))
+
+        test_bcast(sendbuf, wantbuf)
+
+        # Arrays
+        for D in 0:4
+            sz = ntuple(d -> d+2, D)
+            sendbuf = fill(input(rank), sz)
+            wantbuf = fill(input(root), sz)
+
+            test_bcast(sendbuf, wantbuf)
+        end
 
         # reduce, allreduce
 

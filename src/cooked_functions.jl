@@ -4,6 +4,7 @@ const did_init = Ref(false)
 
 const have_MPI_Allgather_c = Ref(false)
 const have_MPI_Allreduce_c = Ref(false)
+const have_MPI_Bcast_c = Ref(false)
 const have_MPI_Exscan_c = Ref(false)
 const have_MPI_Gather_c = Ref(false)
 const have_MPI_Get_count_c = Ref(false)
@@ -19,6 +20,7 @@ const have_MPI_Sendrecv_c = Ref(false)
 push!(init_functions, function ()
     have_MPI_Allgather_c[] = dlsym(libmpi_handle[], "MPI_Allgather_c"; throw_error=false) !== nothing
     have_MPI_Allreduce_c[] = dlsym(libmpi_handle[], "MPI_Allreduce_c"; throw_error=false) !== nothing
+    have_MPI_Bcast_c[] = dlsym(libmpi_handle[], "MPI_Bcast_c"; throw_error=false) !== nothing
     have_MPI_Exscan_c[] = dlsym(libmpi_handle[], "MPI_Exscan_c"; throw_error=false) !== nothing
     have_MPI_Gather_c[] = dlsym(libmpi_handle[], "MPI_Gather_c"; throw_error=false) !== nothing
     have_MPI_Get_count_c[] = dlsym(libmpi_handle[], "MPI_Get_count_c"; throw_error=false) !== nothing
@@ -495,6 +497,26 @@ function barrier(comm::Comm)
         ierr = MPI_Barrier(comm.val)
     end
     chkerr(ierr)
+end
+
+export bcast!
+function bcast!(buffer::Buffer, count::Integer, datatype::Datatype, root::Integer, comm::Comm)
+    GC.@preserve buffer datatype comm begin
+        if have_MPI_Bcast_c[]
+            ierr = MPI_Bcast_c(buffer_ptr(buffer), count, datatype.val, root, comm.val)
+        else
+            ierr = MPI_Bcast(buffer_ptr(buffer), count, datatype.val, root, comm.val)
+        end
+    end
+    chkerr(ierr)
+end
+function bcast!(;
+    buffer::Buffer, count::Integer=buffer_count(buffer), datatype::Datatype=buffer_datatype(buffer), root::Integer, comm::Comm
+)
+    bcast!(buffer, count, datatype, root, comm);
+end
+function bcast!(buffer::Buffer, root::Integer, comm::Comm)
+    bcast!(; buffer, root, comm)
 end
 
 export exscan!, exscan
