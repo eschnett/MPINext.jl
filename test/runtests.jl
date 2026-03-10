@@ -525,6 +525,19 @@ barrier(comm)
             @test all(result .== wantbuf)
         end
 
+        function test_scatter(sendbuf, wantbuf, recvbuf)
+            # Regular API
+            poison!(recvbuf)
+            scatter!(sendbuf, recvbuf, root, comm)
+            @test all(recvbuf .== wantbuf)
+
+            # Low-level pointer API
+            poison!(recvbuf)
+            # Yes, `length(recvbuf)` twice
+            scatter!(pointer(sendbuf), length(recvbuf), Datatype(T), pointer(recvbuf), length(recvbuf), Datatype(T), root, comm)
+            @test all(recvbuf .== wantbuf)
+        end
+
         function test_alltoall(sendbuf, wantbuf, recvbuf)
             # Regular API
             poison!(recvbuf)
@@ -598,6 +611,22 @@ barrier(comm)
             recvbuf = similar(wantbuf)
 
             test_gather(sendbuf, wantbuf, recvbuf)
+        end
+
+        # scatter
+
+        # Arrays
+        for D in 0:4
+            sz = ntuple(d -> d+2, D)
+            if rank == root
+                sendbuf = stack(fill(input(proc), sz) for proc in 0:(size - 1))
+            else
+                sendbuf = stack(fill(poison(T), sz) for proc in 0:(size - 1))
+            end
+            wantbuf = fill(input(rank), sz)
+            recvbuf = similar(wantbuf)
+
+            test_scatter(sendbuf, wantbuf, recvbuf)
         end
 
         # alltoall

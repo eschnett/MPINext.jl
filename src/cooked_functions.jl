@@ -10,6 +10,7 @@ const have_MPI_Irecv_c = Ref(false)
 const have_MPI_Isend_c = Ref(false)
 const have_MPI_Recv_c = Ref(false)
 const have_MPI_Reduce_c = Ref(false)
+const have_MPI_Scatter_c = Ref(false)
 const have_MPI_Send_c = Ref(false)
 const have_MPI_Sendrecv_c = Ref(false)
 
@@ -22,6 +23,7 @@ push!(init_functions, function ()
     have_MPI_Isend_c[] = dlsym(libmpi_handle[], "MPI_Isend_c"; throw_error=false) !== nothing
     have_MPI_Recv_c[] = dlsym(libmpi_handle[], "MPI_Recv_c"; throw_error=false) !== nothing
     have_MPI_Reduce_c[] = dlsym(libmpi_handle[], "MPI_Reduce_c"; throw_error=false) !== nothing
+    have_MPI_Scatter_c[] = dlsym(libmpi_handle[], "MPI_Scatter_c"; throw_error=false) !== nothing
     have_MPI_Send_c[] = dlsym(libmpi_handle[], "MPI_Send_c"; throw_error=false) !== nothing
     have_MPI_Sendrecv_c[] = dlsym(libmpi_handle[], "MPI_Sendrecv_c"; throw_error=false) !== nothing
 end)
@@ -618,6 +620,52 @@ end
 function reduce(sendnumber::Number, op::Op, root::Integer, comm::Comm)
     result = reduce(Ref(sendnumber), op, root, comm)
     return result === nothing ? nothing : result[]
+end
+
+export scatter!
+function scatter!(
+    sendbuf::Buffer,
+    sendcount::Integer,
+    sendtype::Datatype,
+    recvbuf::Buffer,
+    recvcount::Integer,
+    recvtype::Datatype,
+    root::Integer,
+    comm::Comm,
+)
+    GC.@preserve sendbuf sendtype recvbuf recvtype comm begin
+        if have_MPI_Scatter_c[]
+            ierr = MPI_Scatter_c(
+                buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, root, comm.val
+            )
+        else
+            ierr = MPI_Scatter(
+                buffer_ptr(sendbuf), sendcount, sendtype.val, buffer_ptr(recvbuf), recvcount, recvtype.val, root, comm.val
+            )
+        end
+    end
+    chkerr(ierr)
+end
+function scatter!(;
+    sendbuf::Buffer,
+    sendcount::Maybe{Integer}=nothing,
+    sendtype::Maybe{Datatype}=nothing,
+    recvbuf::Buffer,
+    recvcount::Integer=buffer_count(recvbuf),
+    recvtype::Datatype=buffer_datatype(recvbuf),
+    root::Integer,
+    comm::Comm,
+)
+    if sendcount === nothing
+        sendcount = comm_rank(comm) == root ? buffer_count(sendbuf) ÷ comm_size(comm) : 0
+    end
+    if sendtype === nothing
+        sendtype = comm_rank(comm) == root ? buffer_datatype(sendbuf) : DATATYPE_NULL
+    end
+    scatter!(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm)
+end
+function scatter!(sendbuf::Buffer, recvbuf::Buffer, root::Integer, comm::Comm)
+    scatter!(; sendbuf, recvbuf, root, comm)
 end
 
 ################################################################################
